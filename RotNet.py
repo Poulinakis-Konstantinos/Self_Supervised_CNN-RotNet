@@ -1,19 +1,18 @@
 from sklearn.model_selection import learning_curve
-import tensorflow as tf 
-from keras import layers, optimizers, Sequential 
+import tensorflow as tf
+from keras import layers, optimizers, Sequential
 import numpy as np
-from scipy.ndimage import rotate 
+from scipy.ndimage import rotate
 import load_dataset
-from time import time 
-from tensorflow.keras.losses import SparseCategoricalCrossentropy
-from  tqdm import tqdm 
-import sys 
-import matplotlib.pyplot as plt 
+from time import time
+from  tqdm import tqdm
+import sys
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from utils import plot_training_curves, plot_sample
 
 
-def rotate_image(images) : 
+def rotate_image(images) :
     ''' Rotate the given image by 0, 90, 180, 270 degrees
     images(tensor) : A tensor of shape (num_imgs, num_rows, num_columns, num_channels) '''
 
@@ -22,8 +21,8 @@ def rotate_image(images) :
         rotated_imgs.append(image)
         rotated_imgs.append(rotate( image, 90) )
         rotated_imgs.append(rotate( image, 180) )
-        rotated_imgs.append(rotate( image, 270) )     
-    # the labels of rotations 
+        rotated_imgs.append(rotate( image, 270) )
+    # the labels of rotations
     rotations = [0, 1, 2, 3] * images.shape[0]
     return np.array(rotated_imgs), np.array(rotations)
 
@@ -36,7 +35,7 @@ def train_test_split_tensors(X, y, **options):
     :param y: tensorflow.Tensor object
     :dict **options: typical sklearn options are available, such as test_size and train_size
     """
-    
+
     if y==None :
         X_train, X_test = train_test_split(X.numpy(),  **options)
         X_train, X_test = tf.constant(X_train), tf.constant(X_test)
@@ -47,45 +46,91 @@ def train_test_split_tensors(X, y, **options):
         y_train, y_test = tf.constant(y_train), tf.constant(y_test)
         return X_train, X_test, y_train, y_test
     return print("Invalid y value. Should be None or list or np.array")
-    
 
-def RotNet(classes=4) : 
-    ''' Define the RotNet model architecture. '''
-    model = Sequential()
+class CnnBlock(layers.Layer):
+    '''
+    Basic CnnBlock v.1.0
+    '''
+    def __init__(self, out_channels, kernel):
+        super(CnnBlock, self).__init__()
+        self.conv = layers.Conv2D(out_channels, kernel)
+        self.bn = layers.BatchNormalization()
 
-    model.add(layers.Input(shape=(32, 32, 3)))
-    model.add(layers.Conv2D(96, (12,12), activation='relu'))
-    model.add(layers.BatchNormalization() )
-    model.add(layers.Conv2D(192, (6,6), activation='relu'))
-    model.add(layers.BatchNormalization() )
-    model.add(layers.Conv2D(192, (6,6), activation='relu'))
-    model.add(layers.BatchNormalization() )
-    model.add(layers.Conv2D(192, (3,3), activation='relu'))
-    model.add(layers.BatchNormalization() )
+    def call(self, input_tensor, training = False):
+        x = self.conv(input_tensor)
+        x = self.bn(x, training = training)
+        x = keras.activations.relu(x)
+        return x
 
-    model.add(layers.Flatten() )
-    model.add(layers.Dense(200, activation='relu'))
-    model.add(layers.BatchNormalization() )
-    model.add(layers.Dense(200, activation='relu'))
-    model.add(layers.BatchNormalization() )
+class RotNet(keras.Model):
+    def __init__(self, cnn_layers, dense_layers, num_classes = 4, input_shape = (32,32,3)):
+        super(prednet, self).__init__()
+        self.num_classes = num_classes
+        self.cnns = []
+        self.denses = []
+        self.input_shape = input_shape
+        #cnn layers
+        for layer in cnn_layers:
+            self.cnns.append(
+                CnnBlock(layer[0], layer[1])
+            )
+        self.flatten = layers.Flatten()
+        for layer in dense_layers:
+            self.denses.append(
+                layers.Dense(layer,activation = 'relu')
+            )
+        self.output_layer = layers.Dense(num_classes)
 
-    model.add(layers.Dense(classes, activation='softmax'))
+    def call(self, input_tensor, training = False):
+        x = tf.identity(input_tensor)
+        #cnn layers
+        for cnn in self.cnns:
+            x = cnn(x, training = training)
+        #flatten
+        x = layers.Flatten()(x)
+        #dense layers
+        for dense in self.denses:
+            x = dense(x)
+        #output_layer
+        x = self.output_layer(x)
+        return x
 
-    model.compile(optimizer='sgd', loss='sparse_categorical_crossentropy')
-    return model 
+# def RotNet(classes=4) :
+#     ''' Define the RotNet model architecture. '''
+#     model = Sequential()
+#
+#     model.add(layers.Input(shape=(32, 32, 3)))
+#     model.add(layers.Conv2D(96, (12,12), activation='relu'))
+#     model.add(layers.BatchNormalization())
+#     model.add(layers.Conv2D(192, (6,6), activation='relu'))
+#     model.add(layers.BatchNormalization() )
+#     model.add(layers.Conv2D(192, (6,6), activation='relu'))
+#     model.add(layers.BatchNormalization() )
+#     model.add(layers.Conv2D(192, (3,3), activation='relu'))
+#     model.add(layers.BatchNormalization() )
+#
+#     model.add(layers.Flatten() )
+#     model.add(layers.Dense(200, activation='relu'))
+#     model.add(layers.BatchNormalization() )
+#     model.add(layers.Dense(200, activation='relu'))
+#     model.add(layers.BatchNormalization() )
+#
+#     model.add(layers.Dense(classes, activation='softmax'))
+#
+#     model.compile(optimizer='sgd', loss='sparse_categorical_crossentropy')
+#     return model
 
 def get_loss(model, x, y, training=False,
-             f_loss=SparseCategoricalCrossentropy(from_logits=False)) :
-    ''' Calculate loss value between ground truth y and model's output, on input x . '''         
+             f_loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)) :
+    ''' Calculate loss value between ground truth y and model's output, on input x . '''
     y_ = model(x, training=training)
     return f_loss(y_true=y, y_pred=y_)
 
-def grad(model, inputs, targets,
-         f_loss=SparseCategoricalCrossentropy(from_logits=False)) :
-    
+def grad(model, inputs, targets,f_loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)) :
+
     with tf.GradientTape() as tape :
         l_value = get_loss(model, inputs, targets, training=True, f_loss=f_loss)
-    # loss's gradients over all model parameters. 
+    # loss's gradients over all model parameters.
     grads = tape.gradient(l_value, model.trainable_variables)
     return l_value, grads
 
@@ -96,9 +141,9 @@ def train_loop(model, x, y, epochs, optimizer, batch_size=32, val_x=None, val_y=
     val_loss =[]
     tr_acc = []
     val_acc = []
-    
-    if val_x==None and val_y==None : 
-        # create validation split 
+
+    if val_x==None and val_y==None :
+        # create validation split
         x_train, x_val, y_train, y_val = train_test_split_tensors(x, tf.convert_to_tensor(y, tf.int32),
                                                                     test_size=val_split, shuffle=shuffle)
     else :
@@ -107,7 +152,7 @@ def train_loop(model, x, y, epochs, optimizer, batch_size=32, val_x=None, val_y=
     print(f"Initializing Training for {epochs} epochs")
     epoch_loss_avg = tf.keras.metrics.Mean()
     epoch_accuracy = tf.keras.metrics.SparseCategoricalAccuracy()
-    for epoch in tqdm(range(epochs)) : 
+    for epoch in tqdm(range(epochs)) :
         # Training loop - using batches of batch_size
         for index, offset in enumerate(range(0, x_train.shape[0], batch_size)) :
             if (offset + batch_size < x_train.shape[0]) : upper = offset + batch_size   # avoid out of bounds error
@@ -138,22 +183,22 @@ def train_loop(model, x, y, epochs, optimizer, batch_size=32, val_x=None, val_y=
         print("\n")
         print("Epoch: {}/{},  Train_Loss: {:9.4f}   Train_acc: {:9.4f} ,   Val_Loss: {:9.4f}   Val_acc: {:9.4f} ".format(epoch,
               epochs, float(tr_loss[epoch]), float(tr_acc[epoch]), float(val_loss[epoch]), float(val_acc[epoch]) ))
-    
+
     return ((tr_loss, val_loss), (tr_acc, val_acc))
 
 def self_supervised_train(model, x, epochs, optimizer, batch_size=32, val_x=None, val_y=None, val_split=0.2, shuffle=True) :
     ''' Custom training loop '''
     # lists to store values for visualization
     tr_loss = []
-    val_loss =[]
+    val_loss = []
     tr_acc = []
     val_acc = []
-    
-    if val_x==None and val_y==None : 
-        # create validation split 
+
+    if val_x==None and val_y==None :
+        # create validation split
         x_train, x_val = train_test_split_tensors(x, y=None, test_size=val_split, shuffle=shuffle)
     else :
-        x_train=x ; x_val=val_x 
+        x_train=x ; x_val=val_x
 
    # plot_sample(x_train[0:16], 4, 4)
     # create the augmented validation data and the val rotation labels
@@ -162,7 +207,7 @@ def self_supervised_train(model, x, epochs, optimizer, batch_size=32, val_x=None
     print(f"Initializing Self-Supervised Training for {epochs} epochs")
     epoch_loss_avg = tf.keras.metrics.Mean()
     epoch_accuracy = tf.keras.metrics.SparseCategoricalAccuracy()
-    for epoch in tqdm(range(epochs)) : 
+    for epoch in tqdm(range(epochs)):
         # Training loop - using batches of batch_size
         for index, offset in enumerate(range(0, x_train.shape[0], batch_size)) :
             if (offset + batch_size < x_train.shape[0]) : upper = offset + batch_size   # avoid out of bounds error
@@ -204,18 +249,25 @@ def self_supervised_train(model, x, epochs, optimizer, batch_size=32, val_x=None
         print("\n")
         print("Epoch: {}/{},  Train_Loss: {:9.4f}   Train_acc: {:9.4f} ,   Val_Loss: {:9.4f}   Val_acc: {:9.4f} ".format(epoch+1,
               epochs, float(tr_loss[epoch]), float(tr_acc[epoch]), float(val_loss[epoch]), float(val_acc[epoch]) ))
-    
+
     return ((tr_loss, val_loss), (tr_acc, val_acc))
 
 
-if __name__=='__main__' : 
-    epochs = 10 # default value
-    epochs = int(sys.argv[1])
+if __name__=='__main__' :
+    print(tf.config.list_physical_devices('GPU'))
+    #tf.debugging.set_log_device_placement(True)
+    EPOCHS = 10 # default value
+    #epochs = int(sys.argv[1])
 
     # create the model object
-    rotnet = RotNet() 
-    print("Model Archtecture :")
-    print(rotnet.summary())
+    #cnn and dense options
+    cnn_layers = [(96, 12),(192, 6),(192, 6),(192, 3)]
+    dense_layers = [200, 200]
+
+    rotnet = RotNet(cnn_layers, dense_layers, num_classes = 4, input_shape = (32,32,3))
+    rotnet.compile(loss=keras.losses.SparseCategoricalCrossentropy(from_logits = True))
+    # print("Model Archtecture :")
+    # print(rotnet.summary())
     # Load data
     (X, y_train), _ = load_dataset.load_data()
     # np.array to tensor
@@ -223,17 +275,21 @@ if __name__=='__main__' :
     x_train = tf.reshape( x_train, (-1, 32, 32, 3))
     print("Input shape : ",x_train.shape)
 
-    # Train the model via self-supervision 
+    # Train the model via self-supervision
     optimizer = tf.keras.optimizers.Adadelta(learning_rate=0.1)
-    history = self_supervised_train(rotnet, x_train[0:1000], epochs,
+    history = self_supervised_train(rotnet, x_train[0:1000], EPOCHS,
                                    optimizer, batch_size=32, val_split=0.1, shuffle=True)
     plot_training_curves(history)
-    rotnet.save_weights('Net_weights/self_supervised.h5')
-    rotnet.load_weights('Net_weights/self_supervised.h5')
+    #rotnet.save_weights('self_supervised.h5')
+    #rotnet.load_weights('self_supervised.h5')
 
-    # Evaluate on a test set 
-    test_set = x_train[2000:2200] 
-    aug_test, y_test = rotate_image(test_set) 
+    # Save the entire model
+    rotnet.save('saved_model/rotnet_model')
+
+
+    # Evaluate on a test set
+    test_set = x_train[2000:2200]
+    aug_test, y_test = rotate_image(test_set)
     y_preds = rotnet(aug_test)
     epoch_accuracy = tf.keras.metrics.SparseCategoricalAccuracy()
     epoch_accuracy.update_state(y_test, y_preds)
@@ -244,4 +300,3 @@ if __name__=='__main__' :
 
     print("Labels test set sample :", np.argmax(y_preds[0:24], axis=1))
     plot_sample(aug_test[0: 24], 6, 4)
-    

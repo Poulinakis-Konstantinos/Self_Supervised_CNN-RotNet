@@ -2,8 +2,6 @@ import tensorflow as tf
 import keras
 from keras import layers, activations, optimizers, Sequential
 import numpy as np
-from tqdm import tqdm
-import matplotlib.pyplot as plt
 from utils import plot_training_curves, plot_sample
 from trainers import rotate_image
 

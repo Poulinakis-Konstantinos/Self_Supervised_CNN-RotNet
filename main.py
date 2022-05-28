@@ -7,7 +7,7 @@ from os import path
 import tensorflow as tf
 from keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.optimizers import Adadelta
-import matplotlib.pyplot as plt
+
 
 SAVE_PATH = 'Saved_models'
 

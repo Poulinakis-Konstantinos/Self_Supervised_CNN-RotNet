@@ -103,4 +103,3 @@ class RotNet(keras.Model):
 #
 #     model.compile(optimizer='sgd', loss='sparse_categorical_crossentropy')
 #     return model
-

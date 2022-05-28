@@ -79,8 +79,6 @@ class RotNet(keras.Model):
         print("Labels test set sample :", np.argmax(y_preds[0:4], axis=1))
 
 
-
-
 # def RotNet(classes=4) :
 #     ''' Define the RotNet model architecture. '''
 #     model = Sequential()
@@ -106,52 +104,3 @@ class RotNet(keras.Model):
 #     model.compile(optimizer='sgd', loss='sparse_categorical_crossentropy')
 #     return model
 
-
-if __name__ == '__main__':
-    print(tf.config.list_physical_devices('GPU'))
-    # tf.debugging.set_log_device_placement(True)
-    EPOCHS = 10  # default value
-    #epochs = int(sys.argv[1])
-
-    # create the model object
-    # cnn and dense options
-    cnn_layers = [(96, 12), (192, 6), (192, 6), (192, 3)]
-    dense_layers = [200, 200]
-
-    rotnet = RotNet(cnn_layers, dense_layers,
-                    num_classes=4, input_shape=(32, 32, 3))
-    rotnet.compile(
-        loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True))
-    # print("Model Archtecture :")
-    # print(rotnet.summary())
-    # Load data
-    (X, y_train), _ = loaders.load_data()
-    # np.array to tensor
-    x_train = tf.convert_to_tensor(X, dtype=tf.int32)
-    x_train = tf.reshape(x_train, (-1, 32, 32, 3))
-    print("Input shape : ", x_train.shape)
-
-    # Train the model via self-supervision
-    optimizer = tf.keras.optimizers.Adadelta(learning_rate=0.1)
-    history = self_supervised_trainer(rotnet, x_train[0:1000], EPOCHS,
-                                    optimizer, batch_size=32, val_split=0.1, shuffle=True)
-    plot_training_curves(history)
-    # rotnet.save_weights('self_supervised.h5')
-    # rotnet.load_weights('self_supervised.h5')
-
-    # Save the entire model
-    rotnet.save('saved_model/rotnet_model')
-
-    # Evaluate on a test set
-    test_set = x_train[2000:2200]
-    aug_test, y_test = rotate_image(test_set)
-    y_preds = rotnet(aug_test)
-    epoch_accuracy = tf.keras.metrics.SparseCategoricalAccuracy()
-    epoch_accuracy.update_state(y_test, y_preds)
-    print(f"Test set accuracy is {epoch_accuracy.result()}")
-    # Test set loss
-    test_loss = get_loss(rotnet, aug_test, y_test)
-    print(f"Test set loss : {test_loss}")
-
-    print("Labels test set sample :", np.argmax(y_preds[0:24], axis=1))
-    plot_sample(aug_test[0: 24], 6, 4)

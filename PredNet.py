@@ -6,6 +6,7 @@ from utils import plot_training_curves,plot_sample
 from RotNet import train_loop,get_loss
 import numpy as np
 
+
 def PredNet(cnn_layers,dense_layers,in_shape,classes=10,transfer = True) :
     ''' Define the PredNet model architecture. '''
 

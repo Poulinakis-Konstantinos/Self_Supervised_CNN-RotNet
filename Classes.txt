@@ -1,0 +1,78 @@
+class CnnBlock(layers.Layer):
+    '''
+    Basic CnnBlock v.1.0
+    '''
+    def __init__(self, out_channels, kernel):
+        super(CnnBlock, self).__init__()
+        self.conv = layers.Conv2D(out_channels, kernel)
+        self.bn = layers.BatchNormalization()
+
+    def call(self, input_tensor, training = False):
+        x = self.conv(input_tensor)
+        x = self.bn(x, training = training)
+        x = keras.activations.relu(x)
+        return x
+
+class BackBone(keras.Model):
+    def __init__(self, cnn_layers, num_classes=4, in_shape=(32, 32, 3)):
+        super(BackBone, self).__init__()
+
+        # Initialize variables
+        self.cnn_layers = cnn_layers
+        self.num_classes = num_classes
+        self.cnns = []
+        self.denses = []
+        self.in_shape = in_shape
+
+        # Create layers
+        self.Input_layer = layers.Input(shape=in_shape) # Input Layer
+
+        # Convolution - Batch Norm layers
+        for layer in self.cnn_layers:
+            self.cnns.append(CnnBlock(layer[0], layer[1]))
+
+    def call(self, inputs): # Forward
+        x = self.Input_layer
+        for cnn in self.cnns:
+            x = cnn(x) # , training=training
+
+        return x
+
+class RotNet(keras.Model):
+    def __init__(self, cnn_layers, dense_layers, num_classes = 4, in_shape = (32,32,3)):
+        super(RotNet, self).__init__()
+
+        # Initialize variables
+        self.cnn_layers = cnn_layers
+        self.num_classes = num_classes
+        self.cnns = []
+        self.denses = []
+        self.in_shape = in_shape
+
+        # Create layers
+        self.Backbone = BackBone(self.cnn_layers, self.num_classes , in_shape)
+        self.flatten = layers.Flatten()
+        for layer in dense_layers:
+            self.denses.append(layers.Dense(layer,activation = 'relu'))
+            self.denses.append(layers.BatchNormalization())
+
+        self.output_layer = layers.Dense(num_classes,activation = 'softmax')
+
+    def call(self, inputs): # Forward
+
+        # The backbone that contains the convolutional layers
+        x = self.Backbone
+
+        # A layer that flattens the input into a vector
+        x = layers.Flatten()(x)
+
+        # Dense and BatchNorm Layers in pairs
+        for dense in self.denses:
+            x = dense(x)
+
+        # Output layer
+        x = self.output_layer(x)
+        return x
+
+    def save_backbone(self):
+        self.Backbone.save("Rotnet_backbone")

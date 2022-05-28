@@ -1,0 +1,4 @@
+Net_weights/
+saved_model/
+__pycache__/
+.vscode/

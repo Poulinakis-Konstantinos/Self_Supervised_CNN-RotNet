@@ -90,3 +90,4 @@ if __name__=='__main__' :
 
     print("Labels test set sample :", np.argmax(y_preds[0:24], axis=1))
     plot_sample(x_test[0: 24], 6, 4)
+

@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt 
-import numpy as np
 
 def plot_sample(X, rows, cols, tensor=False):
     ''' Function for plotting images.'''

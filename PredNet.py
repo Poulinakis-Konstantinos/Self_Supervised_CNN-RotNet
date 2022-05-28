@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from keras import layers, Sequential
-import load_dataset
+from loaders import  load_dataset
 from utils import plot_training_curves,plot_sample
 from RotNet import train_loop,get_loss
 import numpy as np

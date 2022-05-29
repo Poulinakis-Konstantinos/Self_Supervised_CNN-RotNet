@@ -1,9 +1,10 @@
+from tensorflow import keras
 import tensorflow as tf
-import keras
-from keras import layers, activations, optimizers, Sequential
+from tensorflow.keras import layers, activations, optimizers, Sequential, regularizers
 import numpy as np
 from utils import plot_training_curves, plot_sample
 from trainers import rotate_image
+
 
 class CnnBlock(layers.Layer):
     '''
@@ -62,14 +63,14 @@ class RotNet(keras.Model):
             x_test (tensors) : The test images shape (-1, im_size, im_size, channels)
             loss  : The loss function (default SparseCategoricalCrossEntropy)
         Returns :
-            acc (float32) : accuracy on test set 
+            acc (float32) : accuracy on test set
             loss (float32) : loss on test set'''
 
         aug_test, y_test = rotate_image(x_test)
         y_preds = self.call(aug_test, training=False)
         epoch_accuracy = tf.keras.metrics.SparseCategoricalAccuracy()
         epoch_accuracy.update_state(y_test, y_preds)
-        
+
         # Test set loss
         preds = self.call(aug_test)
         test_loss = loss(y_true=y_test, y_pred=preds)
@@ -79,27 +80,28 @@ class RotNet(keras.Model):
         print("Labels test set sample :", np.argmax(y_preds[0:4], axis=1))
 
 
-# def RotNet(classes=4) :
-#     ''' Define the RotNet model architecture. '''
-#     model = Sequential()
-#
-#     model.add(layers.Input(shape=(32, 32, 3)))
-#     model.add(layers.Conv2D(96, (12,12), activation='relu'))
-#     model.add(layers.BatchNormalization())
-#     model.add(layers.Conv2D(192, (6,6), activation='relu'))
-#     model.add(layers.BatchNormalization() )
-#     model.add(layers.Conv2D(192, (6,6), activation='relu'))
-#     model.add(layers.BatchNormalization() )
-#     model.add(layers.Conv2D(192, (3,3), activation='relu'))
-#     model.add(layers.BatchNormalization() )
-#
-#     model.add(layers.Flatten() )
-#     model.add(layers.Dense(200, activation='relu'))
-#     model.add(layers.BatchNormalization() )
-#     model.add(layers.Dense(200, activation='relu'))
-#     model.add(layers.BatchNormalization() )
-#
-#     model.add(layers.Dense(classes, activation='softmax'))
-#
-#     model.compile(optimizer='sgd', loss='sparse_categorical_crossentropy')
-#     return model
+def RotNet_constructor(build_instructions: dict):
+    '''
+    This is a constructor of a specific rotnet model.
+    Given a set of appropriate build_instructions in dictionary form,
+    it produces a specific keras.Model that has the intended architecture...
+    '''
+
+    inputs = keras.Input(shape=tuple(build_instructions['input_shape']))
+    x = tf.identity(inputs)
+    #cnn layers...
+    for layer in build_instructions['cnn_layers']:
+        x = layers.Conv2D(layer[0], layer[1])(x)
+        x = layers.BatchNormalization()(x)
+        x = keras.activations.relu(x)
+        if build_instructions['include_maxpool']:
+            x = layers.MaxPooling2D()(x)
+    #flatten...
+    x = layers.Flatten()(x)
+    #dense layers...
+    for layer in build_instructions['dense_layers']:
+        x = layers.Dense(layer, activation = 'relu')(x)
+    #output layer...
+    x = layers.Dense(build_instructions['num_classes'])(x)
+
+    return keras.Model(inputs = inputs, outputs = x, name=build_instructions['name'])

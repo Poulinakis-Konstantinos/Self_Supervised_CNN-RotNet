@@ -53,60 +53,6 @@ def plot_training_curves(history):
 
     plt.show()
 
-def RotNet_constructor(build_instructions: dict):
-    '''
-    This is a constructor of a specific rotnet model.
-    Given a set of appropriate build_instructions in dictionary form,
-    it produces a specific keras.Model that has the intended architecture...
-    '''
-
-    inputs = keras.Input(shape=tuple(build_instructions['input_shape']))
-    x = tf.identity(inputs)
-    #cnn layers...
-    for layer in build_instructions['cnn_layers']:
-        x = layers.Conv2D(layer[0], layer[1])(x)
-        x = layers.BatchNormalization()(x)
-        x = keras.activations.relu(x)
-        if build_instructions['include_maxpool']:
-            x = layers.MaxPooling2D()(x)
-    #flatten...
-    x = layers.Flatten()(x)
-    #dense layers...
-    for layer in build_instructions['dense_layers']:
-        x = layers.Dense(layer, activation = 'relu')(x)
-    #output layer...
-    x = layers.Dense(build_instructions['num_classes'])(x)
-    return keras.Model(inputs = inputs, outputs = x, name=build_instructions['name'])
-
-def PredNet_constructor(build_instructions: dict):
-    '''
-    This is a constructor of a specific prednet model.
-    Given a set of appropriate build_instructions in dictionary form,
-    it produces a specific keras.Model that has the intended architecture...
-    '''
-
-    #loads a specific rotnet model...
-    rotnet = keras.models.load_model(build_instructions['load_from'])
-    #keeps until given layer. For example -2 for keeping up to the -2 layer.
-    #attention on what layers to load is demanded!!!
-    x = rotnet.layers[build_instructions['keep_until']].output
-    #typical construction...
-    #cnn layers...
-    for layer in build_instructions['cnn_layers']:
-        x = layers.Conv2D(layer[0], layer[1])(x)
-        x = layers.BatchNormalization()(x)
-        x = keras.activations.relu(x)
-        if build_instructions['include_maxpool']:
-            x = layers.MaxPooling2D()(x)
-    #flatten...
-    x = layers.Flatten()(x)
-    #dense layers...
-    for layer in build_instructions['dense_layers']:
-        x = layers.Dense(layer, activation = 'relu')(x)
-    #output layer...
-    x = layers.Dense(build_instructions['num_classes'])(x)
-
-    return keras.Model(inputs = rotnet.input, outputs = x, name=build_instructions['name'])
 
 class job_receiver:
     '''

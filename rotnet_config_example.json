@@ -11,7 +11,11 @@
     "epochs": 10,
     "learning_rate": 0.001,
     "batch_size": 64,
-    "verbose": 2
+    "verbose": 2,
+    "val_split" :0.2,
+    "optimizer": "Adam",
+    "loss" : "SparseCategoricalCrossEntropy",
+    "shuffle" : true
   },
   "save_path": "rotnet_example.h5"
 }

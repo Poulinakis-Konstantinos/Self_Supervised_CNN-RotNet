@@ -1,5 +1,6 @@
 from loaders import load_data #Img_dloader
-from RotNet import RotNet, RotNet_constructor
+from RotNet import RotNet_constructor
+from PredNet import PredNet_constructor
 from trainers import self_supervised_trainer, supervised_trainer
 from utils import plot_sample, plot_training_curves, job_receiver
 
@@ -7,7 +8,7 @@ from os import path
 import tensorflow as tf
 from keras.losses import SparseCategoricalCrossentropy
 from keras.optimizers import Adadelta
-
+import numpy as np
 
 SAVE_PATH = 'Saved_models'
 
@@ -66,9 +67,21 @@ if __name__ == '__main__':
     history = self_supervised_trainer(rotnet, x_train[0:10], train_par['epochs'],
                                       optimizer, batch_size=train_par['batch_size'],
                                       val_split=train_par['val_split'], shuffle=train_par['shuffle'])
-    # #save model...
-    # PredNet.save_weights(rotnet_job['save_path'])
-e3
+
     # Save the entire RotNet model
-    MODEL_NAME = 'rotnet_v1'
-    rotnet.save(path.join(SAVE_PATH, MODEL_NAME))
+    MODEL_NAME = 'rotnet_example.h5'
+    rotnet.save(rotnet_job["save_path"])
+
+    #Initialize PredNet
+    # path for rotnet construction and training...
+    prednet_path = './prednet_config_example.json'
+    # rotnet job (dictionary form)
+    prednet_job = job_receiver(prednet_path)()
+
+    # here the rotnet model is constructed. see the json file in the rotnet_path to understand...
+    prednet = PredNet_constructor(prednet_job['build_instructions'])
+    print(prednet.summary())
+
+    train_par = prednet_job["training"]
+    optimizer = Adadelta(learning_rate=train_par['learning_rate'])
+    history = supervised_trainer(prednet, x_train,y_train,train_par['epochs'],optimizer,train_par['batch_size'],None,None,val_split=train_par['val_split'], shuffle=train_par['shuffle'])

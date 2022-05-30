@@ -2,7 +2,6 @@ import numpy as np
 from tensorflow import keras
 from tensorflow.keras.datasets import cifar10
 
-
 def load_data():
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
     return (x_train, y_train), (x_test, y_test)

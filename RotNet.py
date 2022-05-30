@@ -1,8 +1,7 @@
 from tensorflow import keras
 import tensorflow as tf
-from tensorflow.keras import layers, activations, optimizers, Sequential, regularizers
+from keras import layers, activations
 import numpy as np
-from utils import plot_training_curves, plot_sample
 from trainers import rotate_image
 
 

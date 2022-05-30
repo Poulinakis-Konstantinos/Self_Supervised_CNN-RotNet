@@ -66,6 +66,8 @@ def self_supervised_trainer(model, x, epochs, optimizer, batch_size=32, val_x=No
     tr_acc = []
     val_acc = []
 
+    model.compile(optimizer, loss, metrics=["accuracy"])
+
     if val_x == None and val_y == None:
         # create validation split
         x_train, x_val = train_test_split_tensors(
@@ -74,7 +76,7 @@ def self_supervised_trainer(model, x, epochs, optimizer, batch_size=32, val_x=No
         x_train = x
         x_val = val_x
     # create the augmented validation data with their respective rotation labels
-    x_val, y_val = rotate_image(x_val)
+
 
     print("====="*10)
     print(f"Initializing Self-Supervised Training for {epochs} epochs")
@@ -107,10 +109,29 @@ def self_supervised_trainer(model, x, epochs, optimizer, batch_size=32, val_x=No
         tr_loss.append(epoch_loss_avg.result().numpy())
         tr_acc.append(epoch_accuracy.result().numpy())
 
+        # reset states
+        epoch_accuracy.reset_state()
+        epoch_loss_avg.reset_state()
+
+        for index, offset in enumerate(range(0, x_val.shape[0], batch_size)):
+            # avoid out of bounds error while batching
+            if (offset + batch_size < x_train.shape[0]):
+                upper = offset + batch_size
+            else:
+                upper = x_train.shape[0]
+
+            # creating batch of size batch_size
+            x_batch = x_val[offset: upper]
+            # Create rotated images and rotation labels
+            augmented_x_val, rot_val_label = rotate_image(x_batch)
+            #print(augmented_x_val.shape)
+
+            val_batch_loss = get_loss(model, augmented_x_val, rot_val_label)
+            epoch_loss_avg.update_state(val_batch_loss)
+            epoch_accuracy.update_state(rot_val_label, model(augmented_x_val, training=False))
+
         # Compute Validation loss and accuracy
-        val_loss.append(get_loss(model, x_val, y_val, training=False).numpy())
-        epoch_accuracy.reset_state()       # clean accuracy state to compute val_accuracy
-        epoch_accuracy.update_state(y_val, model(x_val, training=False))
+        val_loss.append(epoch_loss_avg.result().numpy())
         val_acc.append(epoch_accuracy.result().numpy())
 
         # reset states
@@ -126,13 +147,15 @@ def self_supervised_trainer(model, x, epochs, optimizer, batch_size=32, val_x=No
     return ((tr_loss, val_loss), (tr_acc, val_acc))
 
 
-def supervised_trainer(model, x, y, epochs, optimizer, batch_size=32, val_x=None, val_y=None, val_split=0.2, shuffle=True):
+def supervised_trainer(model, x, y, epochs, optimizer, batch_size=32, val_x=None, val_y=None, val_split=0.2, shuffle=True, loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)):
     ''' Custom training loop for supervised learning '''
     # lists to store values for visualization
     tr_loss = []
     val_loss = []
     tr_acc = []
     val_acc = []
+
+    model.compile(optimizer,loss,metrics = ["accuracy"])
 
     if val_x == None and val_y == None:
         # create validation split

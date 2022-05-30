@@ -64,7 +64,7 @@ if __name__ == '__main__':
 
     train_par = rotnet_job["training"]
     optimizer = Adadelta(learning_rate=train_par['learning_rate'])
-    history = self_supervised_trainer(rotnet, x_train[0:10], train_par['epochs'],
+    history = self_supervised_trainer(rotnet, x_train, train_par['epochs'],
                                       optimizer, batch_size=train_par['batch_size'],
                                       val_split=train_par['val_split'], shuffle=train_par['shuffle'])
 
@@ -84,4 +84,11 @@ if __name__ == '__main__':
 
     train_par = prednet_job["training"]
     optimizer = Adadelta(learning_rate=train_par['learning_rate'])
-    history = supervised_trainer(prednet, x_train,y_train,train_par['epochs'],optimizer,train_par['batch_size'],None,None,val_split=train_par['val_split'], shuffle=train_par['shuffle'])
+
+    history = supervised_trainer(prednet, x_train[0:10000],y_train[0:10000],train_par['epochs'],optimizer,train_par['batch_size'],None,None,val_split=train_par['val_split'], shuffle=train_par['shuffle'])
+
+    # Testing
+    evaluations = prednet.evaluate(x_test[0:100],y_test[0:100],batch_size = 32)
+    print(evaluations)
+    pred = prednet.predict(x_test[0:100])
+    #print(pred)

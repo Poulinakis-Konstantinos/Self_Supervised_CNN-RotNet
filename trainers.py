@@ -58,7 +58,7 @@ def grad(model, inputs, targets, f_loss=tf.keras.losses.SparseCategoricalCrossen
     return l_value, grads
 
 
-def self_supervised_trainer(model, x, epochs, optimizer, batch_size=32, val_x=None, val_y=None, val_split=0.2, shuffle=True):
+def self_supervised_trainer(model, x, epochs, optimizer, batch_size=32, val_x=None, val_y=None, val_split=0.2, shuffle=True, loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)):
     ''' Custom training loop for self-supervised learning with image rotations '''
     # lists to store values for visualization
     tr_loss = []

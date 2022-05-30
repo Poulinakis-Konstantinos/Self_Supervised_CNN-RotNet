@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
-from keras import layers, Sequential
-import load_dataset
+from tensorflow.keras import layers, activations, optimizers, Sequential, regularizers
+from loaders import  load_dataset
 from utils import plot_training_curves,plot_sample
 from RotNet import train_loop,get_loss
 import numpy as np
@@ -37,6 +37,36 @@ def PredNet(cnn_layers,dense_layers,in_shape,classes=10,transfer = True) :
     model.add(layers.Dense(classes, activation='softmax'))
 
     return model
+
+def PredNet_constructor(build_instructions: dict):
+    '''
+    This is a constructor of a specific prednet model.
+    Given a set of appropriate build_instructions in dictionary form,
+    it produces a specific keras.Model that has the intended architecture...
+    '''
+
+    #loads a specific rotnet model...
+    rotnet = keras.models.load_model(build_instructions['load_from'])
+    #keeps until given layer. For example -2 for keeping up to the -2 layer.
+    #attention on what layers to load is demanded!!!
+    x = rotnet.layers[build_instructions['keep_until']].output
+    #typical construction...
+    #cnn layers...
+    for layer in build_instructions['cnn_layers']:
+        x = layers.Conv2D(layer[0], layer[1])(x)
+        x = layers.BatchNormalization()(x)
+        x = keras.activations.relu(x)
+        if build_instructions['include_maxpool']:
+            x = layers.MaxPooling2D()(x)
+    #flatten...
+    x = layers.Flatten()(x)
+    #dense layers...
+    for layer in build_instructions['dense_layers']:
+        x = layers.Dense(layer, activation = 'relu')(x)
+    #output layer...
+    x = layers.Dense(build_instructions['num_classes'])(x)
+
+    return keras.Model(inputs = rotnet.input, outputs = x, name=build_instructions['name'])
 
 if __name__=='__main__' :
 

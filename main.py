@@ -58,13 +58,19 @@ if __name__ == '__main__':
     rotnet_path = './rotnet_config_example.json'
     #rotnet job (dictionary form)
     rotnet_job = job_receiver(rotnet_path)()
+
+    # path for rotnet construction and training...
+    prednet_path = './prednet_config_example.json'
+    # rotnet job (dictionary form)
+    prednet_job = job_receiver(prednet_path)()
+
     import os
     os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
 
     rotnet = RotNet_constructor(rotnet_job['build_instructions'])
     print(rotnet.summary())
 
-    if (rotnet_job['build_instructions']["transfer"]):
+    if (prednet_job['build_instructions']["transfer"]):
         train_par = rotnet_job["training"]
         optimizer = Adadelta(learning_rate=train_par['learning_rate'])
         loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
@@ -87,10 +93,6 @@ if __name__ == '__main__':
     #PredNet.save_weights(rotnet_job['save_path'])
 
     #######   Initialize PredNet  #########
-    # path for rotnet construction and training...
-    prednet_path = './prednet_config_example.json'
-    # rotnet job (dictionary form)
-    prednet_job = job_receiver(prednet_path)()
 
     # here the rotnet model is constructed. see the json file in the rotnet_path to understand...
     prednet = PredNet_constructor(prednet_job['build_instructions'])

@@ -2,11 +2,10 @@
   "build_instructions": {
     "name": "rotnet_example",
     "input_shape": [32, 32, 3],
-    "cnn_layers": [[16, 3], [32, 3]],
+    "cnn_layers": [[96, 16]],
     "include_maxpool": true,
     "dense_layers": [],
-    "num_classes": 4,
-    "transfer": false
+    "num_classes": 4
   },
   "training": {
     "epochs": 10,
@@ -17,7 +16,7 @@
     "optimizer": "Adam",
     "loss" : "SparseCategoricalCrossEntropy",
     "shuffle" : true,
-    "dataset_size" : 10
+    "dataset_size" : 10000
   },
   "save_path": "rotnet_example.h5"
 }

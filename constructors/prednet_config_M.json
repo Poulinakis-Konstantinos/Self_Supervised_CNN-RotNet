@@ -1,0 +1,25 @@
+{
+  "build_instructions": {
+    "name": "prednet_example",
+    "load_from": "rotnet_example.h5",
+    "keep_until": -3,
+    "cnn_layers": [[64, 9], [128, 9],  [128, 9],  [128, 9]],
+    "include_maxpool": true,
+    "dense_layers": [128],
+    "num_classes": 10,
+    "transfer": true
+
+  },
+  "training": {
+    "epochs": 10,
+    "learning_rate": 0.001,
+    "batch_size": 64,
+    "verbose": 2,
+    "val_split" :0.2,
+    "optimizer": "Adam",
+    "loss" : "SparseCategoricalCrossEntropy",
+    "shuffle" : true,
+    "dataset_size" : 10
+  },
+  "save_path": "prednet_example.h5"
+}

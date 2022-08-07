@@ -1,0 +1,25 @@
+{
+  "build_instructions": {
+    "name": "prednet_example_no_SSL",
+    "load_from": "rotnet_example",
+    "keep_until": -3,
+    "cnn_layers": [[64, 3]],
+    "include_maxpool": true,
+    "dense_layers": [128],
+    "num_classes": 10,
+    "transfer": false
+
+  },
+  "training": {
+    "epochs": 10,
+    "learning_rate": 0.001,
+    "batch_size": 64,
+    "verbose": 2,
+    "val_split" :0.2,
+    "optimizer": "Adam",
+    "loss" : "SparseCategoricalCrossEntropy",
+    "shuffle" : true,
+    "dataset_size" : 10
+  },
+  "save_path": "prednet_example_no_SSL"
+}

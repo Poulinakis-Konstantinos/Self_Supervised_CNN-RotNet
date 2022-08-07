@@ -66,6 +66,8 @@ def self_supervised_trainer(model, x, epochs, optimizer, batch_size=32, val_x=No
     tr_acc = []
     val_acc = []
 
+    model.compile(optimizer, loss, metrics=["accuracy"])
+
     if val_x == None and val_y == None:
         # create validation split
         x_train, x_val = train_test_split_tensors(
@@ -95,7 +97,7 @@ def self_supervised_trainer(model, x, epochs, optimizer, batch_size=32, val_x=No
             augmented_x, rot_label = rotate_image(x_batch)
 
             # calculate loss (forward pass) and gradients (backward pass)
-            loss_value, grads = grad(model, augmented_x, rot_label)
+            loss_value, grads = grad(model, augmented_x, rot_label,f_loss=loss)
             # apply weight updates using the optimizer's algorithm
             optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
@@ -126,13 +128,15 @@ def self_supervised_trainer(model, x, epochs, optimizer, batch_size=32, val_x=No
     return ((tr_loss, val_loss), (tr_acc, val_acc))
 
 
-def supervised_trainer(model, x, y, epochs, optimizer, batch_size=32, val_x=None, val_y=None, val_split=0.2, shuffle=True):
+def supervised_trainer(model, x, y, epochs, optimizer, batch_size=32, val_x=None, val_y=None, val_split=0.2, shuffle=True, loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)):
     ''' Custom training loop for supervised learning '''
     # lists to store values for visualization
     tr_loss = []
     val_loss = []
     tr_acc = []
     val_acc = []
+
+    model.compile(optimizer, loss, metrics=["accuracy"])
 
     if val_x == None and val_y == None:
         # create validation split
@@ -161,7 +165,7 @@ def supervised_trainer(model, x, y, epochs, optimizer, batch_size=32, val_x=None
             y_batch = y_train[offset: upper]
 
             # calculate loss (forward pass) and gradients (backward pass)
-            loss_value, grads = grad(model, x_batch, y_batch)
+            loss_value, grads = grad(model, x_batch, y_batch,f_loss=loss)
             # apply weight updates using the optimizer's algorithm
             optimizer.apply_gradients(zip(grads, model.trainable_variables))
 

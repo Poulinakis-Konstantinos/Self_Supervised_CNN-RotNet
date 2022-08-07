@@ -6,8 +6,9 @@ from utils import plot_sample, plot_training_curves, job_receiver
 
 from os import path
 import tensorflow as tf
-from tensorflow.keras.losses import SparseCategoricalCrossentropy
-from tensorflow.keras.optimizers import Adadelta
+from keras.losses import SparseCategoricalCrossentropy
+from keras.optimizers import Adadelta, Adam
+import numpy as np
 
 
 SAVE_PATH = 'Saved_models'
@@ -57,34 +58,33 @@ if __name__ == '__main__':
     rotnet_path = './rotnet_config_example.json'
     #rotnet job (dictionary form)
     rotnet_job = job_receiver(rotnet_path)()
-    
-    #here the rotnet model is constructed. see the json file in the rotnet_path to understand...
+    import os
+    os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
+
     rotnet = RotNet_constructor(rotnet_job['build_instructions'])
     print(rotnet.summary())
-    
-    train_par = rotnet_job["training"]
-    optimizer = Adadelta(learning_rate=train_par['learning_rate'])
-    history = self_supervised_trainer(rotnet,
-                                      x_train[:train_par["dataset_size"]],
-                                      train_par['epochs'],
-                                      optimizer,
-                                      batch_size=train_par['batch_size'],
-                                      val_split=train_par['val_split'],
-                                      shuffle=train_par['shuffle'])
 
-    eval_rotnet(x_test=x_test, model=rotnet)
+    if (rotnet_job['build_instructions']["transfer"]):
+        train_par = rotnet_job["training"]
+        optimizer = Adadelta(learning_rate=train_par['learning_rate'])
+        loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+        history = self_supervised_trainer(rotnet,
+                                          x_train[:train_par["dataset_size"]],
+                                          train_par['epochs'],
+                                          optimizer,
+                                          batch_size=train_par['batch_size'],
+                                          val_split=train_par['val_split'],
+                                          shuffle=train_par['shuffle'],loss=loss)
+
+        eval_rotnet(x_test=x_test, model=rotnet)
+    
+    #here the rotnet model is constructed. see the json file in the rotnet_path to understand...
+
     #save model...
-    #PredNet.save_weights(rotnet_job['save_path'])
-
-    
-    # Save the entire RotNet model
-    MODEL_NAME = 'rotnet_v1'
-    rotnet.save(path.join(SAVE_PATH, MODEL_NAME))
-    
-
     # Save the entire RotNet model
     MODEL_NAME = 'rotnet_example.h5'
     rotnet.save(rotnet_job["save_path"])
+    #PredNet.save_weights(rotnet_job['save_path'])
 
     #######   Initialize PredNet  #########
     # path for rotnet construction and training...
@@ -98,6 +98,7 @@ if __name__ == '__main__':
 
     train_par = prednet_job["training"]
     optimizer = Adadelta(learning_rate=train_par['learning_rate'])
+    loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
     history = supervised_trainer(prednet,
                                  x_train[0:train_par["dataset_size"]],
@@ -106,7 +107,7 @@ if __name__ == '__main__':
                                  optimizer,train_par['batch_size'],
                                  None,None,
                                  val_split=train_par['val_split'],
-                                 shuffle=train_par['shuffle'])
+                                 shuffle=train_par['shuffle'],loss=loss)
 
     # Testing
     evaluations = prednet.evaluate(x_test, y_test,batch_size = 32)

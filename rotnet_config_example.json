@@ -5,7 +5,8 @@
     "cnn_layers": [[16, 3], [32, 3]],
     "include_maxpool": true,
     "dense_layers": [],
-    "num_classes": 4
+    "num_classes": 4,
+    "transfer": false
   },
   "training": {
     "epochs": 10,
@@ -16,7 +17,7 @@
     "optimizer": "Adam",
     "loss" : "SparseCategoricalCrossEntropy",
     "shuffle" : true,
-    "dataset_size" : 10000
+    "dataset_size" : 10
   },
   "save_path": "rotnet_example.h5"
 }

@@ -64,11 +64,15 @@ if __name__ == '__main__':
     
     train_par = rotnet_job["training"]
     optimizer = Adadelta(learning_rate=train_par['learning_rate'])
-    history = self_supervised_trainer(rotnet, x_train[0:10], train_par['epochs'],
-                                      optimizer, batch_size=train_par['batch_size'],
-                                      val_split=train_par['val_split'], shuffle=train_par['shuffle'])
+    history = self_supervised_trainer(rotnet,
+                                      x_train[:rotnet_job["dataset_size"]],
+                                      train_par['epochs'],
+                                      optimizer,
+                                      batch_size=train_par['batch_size'],
+                                      val_split=train_par['val_split'],
+                                      shuffle=train_par['shuffle'])
 
-    eval_rotnet(x_test=x_test[0:50], model=rotnet)
+    eval_rotnet(x_test=x_test, model=rotnet)
     #save model...
     #PredNet.save_weights(rotnet_job['save_path'])
 
@@ -95,12 +99,19 @@ if __name__ == '__main__':
     train_par = prednet_job["training"]
     optimizer = Adadelta(learning_rate=train_par['learning_rate'])
 
-    history = supervised_trainer(prednet, x_train[0:10000],y_train[0:10000],train_par['epochs'],optimizer,train_par['batch_size'],None,None,val_split=train_par['val_split'], shuffle=train_par['shuffle'])
+    history = supervised_trainer(prednet,
+                                 x_train[0:prednet_job["dataset_size"]],
+                                 y_train[0:prednet_job["dataset_size"]],
+                                 train_par['epochs'],
+                                 optimizer,train_par['batch_size'],
+                                 None,None,
+                                 val_split=train_par['val_split'],
+                                 shuffle=train_par['shuffle'])
 
     # Testing
-    evaluations = prednet.evaluate(x_test[0:100],y_test[0:100],batch_size = 32)
+    evaluations = prednet.evaluate(x_test, y_test,batch_size = 32)
     print(evaluations)
-    pred = prednet.predict(x_test[0:100])
+    pred = prednet.predict(x_test)
 
 
     print('END')

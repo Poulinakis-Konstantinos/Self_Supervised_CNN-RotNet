@@ -15,7 +15,8 @@
     "val_split" :0.2,
     "optimizer": "Adam",
     "loss" : "SparseCategoricalCrossEntropy",
-    "shuffle" : true
+    "shuffle" : true,
+    "dataset_size" : 10000
   },
   "save_path": "rotnet_example.h5"
 }

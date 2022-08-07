@@ -86,10 +86,10 @@ if __name__ == '__main__':
     train_par = prednet_job["training"]
     optimizer = Adadelta(learning_rate=train_par['learning_rate'])
 
-    history = supervised_trainer(prednet, x_train[0:10000],y_train[0:10000],train_par['epochs'],optimizer,train_par['batch_size'],None,None,val_split=train_par['val_split'], shuffle=train_par['shuffle'])
+    history = supervised_trainer(prednet, x_train[0:train_par['dataset_size']],y_train[0:train_par['dataset_size']],train_par['epochs'],optimizer,train_par['batch_size'],None,None,val_split=train_par['val_split'], shuffle=train_par['shuffle'])
 
     # Testing
-    evaluations = prednet.evaluate(x_test[0:100],y_test[0:100],batch_size = 32)
+    evaluations = prednet.evaluate(x_test,y_test,batch_size = train_par['batch_size'])
     print(evaluations)
-    pred = prednet.predict(x_test[0:100])
+    pred = prednet.predict(x_test)
     #print(pred)

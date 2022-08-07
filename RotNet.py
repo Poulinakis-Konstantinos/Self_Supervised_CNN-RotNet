@@ -2,7 +2,6 @@ from tensorflow import keras
 import tensorflow as tf
 from tensorflow.keras import layers, activations, optimizers, Sequential, regularizers
 import numpy as np
-from utils import plot_training_curves, plot_sample
 from trainers import rotate_image
 
 
@@ -72,8 +71,7 @@ class RotNet(keras.Model):
         epoch_accuracy.update_state(y_test, y_preds)
 
         # Test set loss
-        preds = self.call(aug_test)
-        test_loss = loss(y_true=y_test, y_pred=preds)
+        test_loss = loss(y_true=y_test, y_pred=y_preds)
         print(f"Test set accuracy is {epoch_accuracy.result()}")
         print(f"Test set loss : {test_loss}")
 
@@ -105,3 +103,26 @@ def RotNet_constructor(build_instructions: dict):
     x = layers.Dense(build_instructions['num_classes'])(x)
 
     return keras.Model(inputs = inputs, outputs = x, name=build_instructions['name'])
+
+
+
+def eval_rotnet(x_test, model, loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)) :
+    '''Evaluates on a test set of images by rotating them and then feeding them
+    Parameters :
+        x_test (tensors) : The test images shape (-1, im_size, im_size, channels)
+        loss  : The loss function (default SparseCategoricalCrossEntropy)
+    Returns :
+        acc (float32) : accuracy on test set
+        loss (float32) : loss on test set'''
+
+    aug_test, y_test = rotate_image(x_test)
+    y_preds = model(aug_test, training=False)
+    epoch_accuracy = tf.keras.metrics.SparseCategoricalAccuracy()
+    epoch_accuracy.update_state(y_test, y_preds)
+
+    # Test set loss
+    test_loss = loss(y_true=y_test, y_pred=y_preds)
+    print(f"Test set accuracy is {epoch_accuracy.result()}")
+    print(f"Test set loss : {test_loss}")
+
+    print("Labels test set sample :", np.argmax(y_preds[0:4], axis=1))

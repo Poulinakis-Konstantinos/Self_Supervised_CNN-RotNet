@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow.keras import layers, activations, optimizers, Sequential, regularizers
 import numpy as np
 from trainers import rotate_image
-
+from os import path
 
 class CnnBlock(layers.Layer):
     '''
@@ -89,7 +89,7 @@ def RotNet_constructor(build_instructions: dict):
     x = tf.identity(inputs)
     #cnn layers...
     for layer in build_instructions['cnn_layers']:
-        x = layers.Conv2D(layer[0], layer[1])(x)
+        x = layers.Conv2D(layer[0], layer[1], padding='same')(x)
         x = layers.BatchNormalization()(x)
         x = keras.activations.relu(x)
         if build_instructions['include_maxpool']:
@@ -106,7 +106,7 @@ def RotNet_constructor(build_instructions: dict):
 
 
 
-def eval_rotnet(x_test, model, loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)) :
+def eval_rotnet(x_test, model, result_path, loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)) :
     '''Evaluates on a test set of images by rotating them and then feeding them
     Parameters :
         x_test (tensors) : The test images shape (-1, im_size, im_size, channels)
@@ -122,7 +122,12 @@ def eval_rotnet(x_test, model, loss=tf.keras.losses.SparseCategoricalCrossentrop
 
     # Test set loss
     test_loss = loss(y_true=y_test, y_pred=y_preds)
+    print("====="*4 + "  RotNet evaluation Report  " + "====="*4)
     print(f"Test set accuracy is {epoch_accuracy.result()}")
     print(f"Test set loss : {test_loss}")
-
     print("Labels test set sample :", np.argmax(y_preds[0:4], axis=1))
+    print("======="*10)
+
+    with open( path.join(result_path, 'evaluation_result.txt'), 'w') as txt :
+        txt.write( f"Model : {result_path.split(path.sep)[1]} \n Test set accuracy is {epoch_accuracy.result()} \n Test set loss : {test_loss}")
+                     

@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers, regularizers
 import json
+from os import path
 
 def plot_sample(X, rows, cols, tensor=False):
     ''' Function for plotting images.'''
@@ -23,7 +24,7 @@ def plot_sample(X, rows, cols, tensor=False):
     plt.show()
 
 
-def plot_training_curves(history):
+def plot_training_curves(history, save_path):
     '''Plot training learning curves for both train and validation.'''
     #Defining the metrics we will plot.
     train_acc = history[1][0]
@@ -51,7 +52,7 @@ def plot_training_curves(history):
     plt.ylabel("Accuracy") #title for y axis
     plt.legend(fontsize=11)
 
-    plt.show()
+    plt.savefig(path.join(save_path, 'training_curve.png'))
 
 
 class job_receiver:

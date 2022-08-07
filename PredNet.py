@@ -48,7 +48,7 @@ def PredNet_constructor(build_instructions: dict):
     '''
 
     #loads a specific rotnet model...
-    rotnet = keras.models.load_model(build_instructions['load_from'])
+    rotnet = keras.models.load_model(path.join(SAVE_PATH, build_instructions['load_from']))
     #keeps until given layer. For example -2 for keeping up to the -2 layer.
     #attention on what layers to load is demanded!!!
     x = rotnet.layers[build_instructions['keep_until']].output

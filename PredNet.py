@@ -1,9 +1,8 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers, activations, optimizers, Sequential, regularizers
-from loaders import  load_dataset
+from loaders import  load_data
 from utils import plot_training_curves,plot_sample
-from RotNet import train_loop,get_loss
 import numpy as np
 from os import path 
 
@@ -70,4 +69,3 @@ def PredNet_constructor(build_instructions: dict):
     x = layers.Dense(build_instructions['num_classes'])(x)
 
     return keras.Model(inputs = rotnet.input, outputs = x, name=build_instructions['name'])
-

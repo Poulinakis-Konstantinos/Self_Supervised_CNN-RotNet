@@ -1,5 +1,6 @@
 from loaders import load_data #Img_dloader
 from RotNet import RotNet, RotNet_constructor, eval_rotnet
+from PredNet import PredNet_constructor
 from trainers import self_supervised_trainer, supervised_trainer
 from utils import plot_sample, plot_training_curves, job_receiver
 
@@ -76,4 +77,30 @@ if __name__ == '__main__':
     MODEL_NAME = 'rotnet_v1'
     rotnet.save(path.join(SAVE_PATH, MODEL_NAME))
     
+
+    # Save the entire RotNet model
+    MODEL_NAME = 'rotnet_example.h5'
+    rotnet.save(rotnet_job["save_path"])
+
+    #######   Initialize PredNet  #########
+    # path for rotnet construction and training...
+    prednet_path = './prednet_config_example.json'
+    # rotnet job (dictionary form)
+    prednet_job = job_receiver(prednet_path)()
+
+    # here the rotnet model is constructed. see the json file in the rotnet_path to understand...
+    prednet = PredNet_constructor(prednet_job['build_instructions'])
+    print(prednet.summary())
+
+    train_par = prednet_job["training"]
+    optimizer = Adadelta(learning_rate=train_par['learning_rate'])
+
+    history = supervised_trainer(prednet, x_train[0:10000],y_train[0:10000],train_par['epochs'],optimizer,train_par['batch_size'],None,None,val_split=train_par['val_split'], shuffle=train_par['shuffle'])
+
+    # Testing
+    evaluations = prednet.evaluate(x_test[0:100],y_test[0:100],batch_size = 32)
+    print(evaluations)
+    pred = prednet.predict(x_test[0:100])
+
+
     print('END')

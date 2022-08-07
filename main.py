@@ -65,7 +65,7 @@ if __name__ == '__main__':
     train_par = rotnet_job["training"]
     optimizer = Adadelta(learning_rate=train_par['learning_rate'])
     history = self_supervised_trainer(rotnet,
-                                      x_train[:rotnet_job["dataset_size"]],
+                                      x_train[:train_par["dataset_size"]],
                                       train_par['epochs'],
                                       optimizer,
                                       batch_size=train_par['batch_size'],
@@ -100,8 +100,8 @@ if __name__ == '__main__':
     optimizer = Adadelta(learning_rate=train_par['learning_rate'])
 
     history = supervised_trainer(prednet,
-                                 x_train[0:prednet_job["dataset_size"]],
-                                 y_train[0:prednet_job["dataset_size"]],
+                                 x_train[0:train_par["dataset_size"]],
+                                 y_train[0:train_par["dataset_size"]],
                                  train_par['epochs'],
                                  optimizer,train_par['batch_size'],
                                  None,None,

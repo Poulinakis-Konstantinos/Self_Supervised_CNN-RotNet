@@ -7,7 +7,7 @@ from utils import plot_sample, plot_training_curves, job_receiver
 from os import path
 import tensorflow as tf
 from keras.losses import SparseCategoricalCrossentropy
-from keras.optimizers import Adadelta
+from keras.optimizers import Adadelta, Adam
 import numpy as np
 
 SAVE_PATH = 'Saved_models'
@@ -58,19 +58,20 @@ if __name__ == '__main__':
     #rotnet job (dictionary form)
     rotnet_job = job_receiver(rotnet_path)()
 
-    #here the rotnet model is constructed. see the json file in the rotnet_path to understand...
-    rotnet = RotNet_constructor(rotnet_job['build_instructions'])
-    print(rotnet.summary())
+    if(rotnet_job['build_instructions']["transfer"]):
+        #here the rotnet model is constructed. see the json file in the rotnet_path to understand...
+        rotnet = RotNet_constructor(rotnet_job['build_instructions'])
+        print(rotnet.summary())
 
-    train_par = rotnet_job["training"]
-    optimizer = Adadelta(learning_rate=train_par['learning_rate'])
-    history = self_supervised_trainer(rotnet, x_train, train_par['epochs'],
-                                      optimizer, batch_size=train_par['batch_size'],
-                                      val_split=train_par['val_split'], shuffle=train_par['shuffle'])
+        train_par = rotnet_job["training"]
+        optimizer = Adam(learning_rate=train_par['learning_rate'])
+        history = self_supervised_trainer(rotnet, x_train, train_par['epochs'],
+                                          optimizer, batch_size=train_par['batch_size'],
+                                          val_split=train_par['val_split'], shuffle=train_par['shuffle'])
 
-    # Save the entire RotNet model
-    MODEL_NAME = 'rotnet_example.h5'
-    rotnet.save(rotnet_job["save_path"])
+        # Save the entire RotNet model
+        MODEL_NAME = 'rotnet_example.h5'
+        rotnet.save(rotnet_job["save_path"])
 
     #Initialize PredNet
     # path for rotnet construction and training...

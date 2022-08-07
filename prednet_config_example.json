@@ -4,13 +4,16 @@
     "load_from": "rotnet_example.h5",
     "keep_until": -3,
     "cnn_layers": [[64, 3]],
+    "input_shape": [32, 32, 3],
+    "backbone_cnn_layers": [[16, 3], [32, 3]],
     "include_maxpool": true,
     "dense_layers": [128],
-    "num_classes": 10
+    "num_classes": 10,
+    "transfer": false
   },
   "training": {
-    "epochs": 20,
-    "learning_rate": 0.003,
+    "epochs": 50,
+    "learning_rate": 0.01,
     "batch_size": 64,
     "verbose": 2,
     "val_split" :0.2,

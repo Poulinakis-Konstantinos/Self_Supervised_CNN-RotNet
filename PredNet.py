@@ -47,7 +47,19 @@ def PredNet_constructor(build_instructions: dict):
     rotnet = keras.models.load_model(build_instructions['load_from'])
     #keeps until given layer. For example -2 for keeping up to the -2 layer.
     #attention on what layers to load is demanded!!!
-    x = rotnet.layers[build_instructions['keep_until']].output
+    if(build_instructions['transfer']):
+        x = rotnet.layers[build_instructions['keep_until']].output
+    else:
+        inputs = keras.Input(shape=tuple(build_instructions['input_shape']))
+        x = tf.identity(inputs)
+        # cnn layers...
+        for layer in build_instructions['backbone_cnn_layers']:
+            x = layers.Conv2D(layer[0], layer[1])(x)
+            x = layers.BatchNormalization()(x)
+            x = keras.activations.relu(x)
+            if build_instructions['include_maxpool']:
+                x = layers.MaxPooling2D()(x)
+
     #typical construction...
     #cnn layers...
     for layer in build_instructions['cnn_layers']:
@@ -64,4 +76,7 @@ def PredNet_constructor(build_instructions: dict):
     #output layer...
     x = layers.Dense(build_instructions['num_classes'])(x)
 
-    return keras.Model(inputs = rotnet.input, outputs = x, name=build_instructions['name'])
+    if (build_instructions['transfer']):
+        return keras.Model(inputs = rotnet.input, outputs = x, name=build_instructions['name'])
+    else:
+        return keras.Model(inputs=inputs, outputs=x, name=build_instructions['name'])

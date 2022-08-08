@@ -1,9 +1,9 @@
 {
   "build_instructions": {
-    "name": "prednet_Small_3_SSL",
+    "name": "prednet_S3_SSL",
     "load_from": "rotnet_3.h5",
-    "keep_until": -3,
-    "cnn_layers": [[32, 9], [64, 9]],
+    "keep_until": -6,
+    "cnn_layers": [[32, 6], [64, 6], [128, 6]],
     "include_maxpool": true,
     "dense_layers": [128],
     "num_classes": 10,
@@ -11,7 +11,7 @@
 
   },
   "training": {
-    "epochs": 2,
+    "epochs": 150,
     "learning_rate": 0.001,
     "batch_size": 64,
     "verbose": 2,
@@ -19,7 +19,7 @@
     "optimizer": "Adam",
     "loss" : "SparseCategoricalCrossEntropy",
     "shuffle" : true,
-    "dataset_size" : 10
+    "dataset_size" : 5000
   },
-  "save_path": "prednet_Small_3_SSL.h5"
+  "save_path": "prednet_S3_SSL.h5"
 }

@@ -10,6 +10,7 @@ from keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.optimizers import  Adadelta,Adam
 import numpy as np
 import sys 
+import json
 
 SAVE_PATH = 'Saved_models'
 CONSTRUCTOR_PATH = 'constructors'
@@ -97,6 +98,11 @@ if __name__ == '__main__':
         plot_training_curves(history,  result_path)
         with open(path.join(result_path, "architecture.txt"), 'w') as f:
             rotnet.summary(print_fn=lambda x: f.write(x + '\n'))
+        with open(path.join(result_path, "configurations.json"), 'w') as f:
+            #f.write(str(train_par))
+            f.write(json.dumps(train_par)) # use `json.loads` to do the reverse
+           # print(train_par , file=f)
+
 
     #save model...
     print("Saving RotNet model at ", path.join(SAVE_PATH, rotnet_job["save_path"]))
@@ -135,7 +141,11 @@ if __name__ == '__main__':
         txt.write(f" Model : {result_path.split(path.sep)[1]} \n Test set accuracy is : {evaluations[1]} \n Test set Loss is : {evaluations[0]}")
     with open(path.join(result_path, "architecture.txt"), 'w') as f:
         prednet.summary(print_fn=lambda x: f.write(x + '\n'))
-
+    with open(path.join(result_path, "configurations.json"), 'w') as f:
+        #txt.write(str(train_par) + f'\n Self-Supervision : {prednet_job["build_instructions"]["transfer"]}' )
+        f.write(json.dumps(train_par)) # use `json.loads` to do the reverse
+        #print(train_par + f'\n Self-Supervision : {prednet_job["build_instructions"]["transfer"]}' , file=txt)
+        
     pred = prednet.predict(x_test[:test_size])
     prednet.save(path.join(SAVE_PATH, prednet_job["save_path"]))
 

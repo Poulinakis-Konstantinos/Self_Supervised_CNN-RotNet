@@ -1,22 +1,22 @@
 {
   "build_instructions": {
-    "name": "rotnet_4",
+    "name": "rotnet_3",
     "input_shape": [32, 32, 3],
-    "cnn_layers": [[64, 3],[64, 3], [64, 3], [64, 3]],
+    "cnn_layers": [[48, 16], [96, 8], [96, 8]],
     "include_maxpool": false,
     "dense_layers": [],
     "num_classes": 4
   },
   "training": {
     "epochs": 100,
-    "learning_rate": 0.01,
+    "learning_rate": 0.001,
     "batch_size": 64,
     "verbose": 2,
     "val_split" :0.2,
-    "optimizer": "SGD",
+    "optimizer": "Adam",
     "loss" : "SparseCategoricalCrossEntropy",
     "shuffle" : true,
     "dataset_size" : -1
   },
-  "save_path": "rotnet_4.h5"
+  "save_path": "rotnet_3.h5"
 }

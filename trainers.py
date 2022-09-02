@@ -3,6 +3,7 @@ import tensorflow as tf
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from scipy.ndimage import rotate
+from tensorflow import keras
 
 def rotate_image(images):
     ''' Rotate the given image by 0, 90, 180, 270 degrees
@@ -78,6 +79,10 @@ def self_supervised_trainer(model, x, epochs, optimizer, batch_size=32, val_x=No
     # create the augmented validation data with their respective rotation labels
     x_val, y_val = rotate_image(x_val)
 
+    # Prepare the validation dataset.
+    val_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val))
+    val_dataset = val_dataset.batch(batch_size)
+
     print("====="*10)
     print(f"Initializing Self-Supervised Training for {epochs} epochs")
     epoch_loss_avg = tf.keras.metrics.Mean()
@@ -110,10 +115,21 @@ def self_supervised_trainer(model, x, epochs, optimizer, batch_size=32, val_x=No
         tr_acc.append(epoch_accuracy.result().numpy())
 
         # Compute Validation loss and accuracy
-        val_loss.append(get_loss(model, x_val, y_val, training=False).numpy())
-        epoch_accuracy.reset_state()       # clean accuracy state to compute val_accuracy
-        epoch_accuracy.update_state(y_val, model(x_val, training=False))
-        val_acc.append(epoch_accuracy.result().numpy())
+        val_acc_metric = keras.metrics.SparseCategoricalAccuracy()
+        val_loss_metric = keras.metrics.Mean()
+        # Run a validation loop at the end of each epoch.
+        for x_batch_val, y_batch_val in val_dataset:
+            val_logits = model(x_batch_val, training=False)
+            # Update val metrics
+            val_acc_metric.update_state(y_batch_val, val_logits)
+            val_loss_metric.update_state(loss(y_batch_val, val_logits))
+        val_acc_val = val_acc_metric.result()
+        val_loss_val = val_loss_metric.result()
+        val_acc_metric.reset_states()
+        val_loss_metric.reset_states()
+
+        val_acc.append(val_acc_val.numpy())
+        val_loss.append(val_loss_val.numpy())
 
         # reset states
         epoch_accuracy.reset_state()
@@ -148,6 +164,10 @@ def supervised_trainer(model, x, y, epochs, optimizer, batch_size=32, val_x=None
         x_val = val_x
         y_val = val_y
 
+    # Prepare the validation dataset.
+    val_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val))
+    val_dataset = val_dataset.batch(batch_size)
+
     print(f"Initializing Training for {epochs} epochs")
     epoch_loss_avg = tf.keras.metrics.Mean()
     epoch_accuracy = tf.keras.metrics.SparseCategoricalAccuracy()
@@ -178,19 +198,31 @@ def supervised_trainer(model, x, y, epochs, optimizer, batch_size=32, val_x=None
         tr_acc.append(epoch_accuracy.result().numpy())
 
         # Compute Validation loss and accuracy
-        val_loss.append(get_loss(model, x_val, y_val, training=False).numpy())
-        epoch_accuracy.reset_state()       # clean accuracy state to compute val_accuracy
-        epoch_accuracy.update_state(y_val, model(x_val, training=False))
-        val_acc.append(epoch_accuracy.result().numpy())
+        val_acc_metric = keras.metrics.SparseCategoricalAccuracy()
+        val_loss_metric = keras.metrics.Mean()
+        # Run a validation loop at the end of each epoch.
+        for x_batch_val, y_batch_val in val_dataset:
+            val_logits = model(x_batch_val, training=False)
+            # Update val metrics
+            val_acc_metric.update_state(y_batch_val, val_logits)
+            val_loss_metric.update_state(loss(y_batch_val, val_logits))
+        val_acc_val = val_acc_metric.result()
+        val_loss_val = val_loss_metric.result()
+
+        val_acc.append(val_acc_val.numpy())
+        val_loss.append(val_loss_val.numpy())
 
         # reset states
+        val_acc_metric.reset_states()
+        val_loss_metric.reset_states()
         epoch_accuracy.reset_state()
         epoch_loss_avg.reset_state()
 
         # Print Epoch's progress details
         print("\n")
-        print("Epoch: {}/{},  Train_Loss: {:9.4f}   Train_acc: {:9.4f} ,   Val_Loss: {:9.4f}   Val_acc: {:9.4f} ".format(epoch,
-              epochs, float(tr_loss[epoch]), float(tr_acc[epoch]), float(val_loss[epoch]), float(val_acc[epoch])))
+        print(            "Epoch: {}/{},  Train_Loss: {:9.4f}   Train_acc: {:9.4f} ,   Val_Loss: {:9.4f}   Val_acc: {:9.4f} ".format(
+                epoch + 1,
+                epochs, float(tr_loss[epoch]), float(tr_acc[epoch]), float(val_loss[epoch]), float(val_acc[epoch])))
 
     # return training history
     return ((tr_loss, val_loss), (tr_acc, val_acc))

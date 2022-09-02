@@ -55,17 +55,21 @@ def PredNet_constructor(build_instructions: dict):
     #typical construction...
     #cnn layers...
     for layer in build_instructions['cnn_layers']:
-        x = layers.Conv2D(layer[0], layer[1])(x)
+        x = layers.Conv2D(layer[0], layer[1],kernel_regularizer=regularizers.l2(build_instructions['weight_decay']))(x)
         x = layers.BatchNormalization()(x)
         x = keras.activations.relu(x)
         if build_instructions['include_maxpool']:
             x = layers.MaxPooling2D()(x)
+        x = layers.Dropout(0.25)(x)
+
     #flatten...
+
     x = layers.Flatten()(x)
     #dense layers...
     for layer in build_instructions['dense_layers']:
         x = layers.Dense(layer, activation = 'relu')(x)
     #output layer...
+    x = layers.Dropout(0.25)(x)
     x = layers.Dense(build_instructions['num_classes'])(x)
 
     return keras.Model(inputs = rotnet.input, outputs = x, name=build_instructions['name'])

@@ -1,25 +1,28 @@
 {
   "build_instructions": {
     "name": "prednet_S5_no_SSL",
-    "load_from": "rotnet_5.h5",
+    "load_from": "rotnet_5_no_SSL.h5",
     "keep_until": -12,
-    "cnn_layers": [[32, 6], [64, 6], [128, 6]],
+    "cnn_layers": [[128, 3],[128, 3],[256, 3],[256, 3]],
     "include_maxpool": false,
-    "dense_layers": [128],
+    "dense_layers": [128,100,80],
     "num_classes": 10,
-    "transfer": false
+    "transfer": false,
+    "weight_decay" : 0.001
 
   },
   "training": {
-    "epochs": 150,
-    "learning_rate": 0.001,
+    "epochs": 100,
+    "learning_rate": 0.01,
     "batch_size": 64,
     "verbose": 2,
     "val_split" :0.2,
-    "optimizer": "Adam",
+    "optimizer": "SGD",
     "loss" : "SparseCategoricalCrossEntropy",
     "shuffle" : true,
-    "dataset_size" : 5000
+    "dataset_size" : -1,
+    "load_only" : true
   },
   "save_path": "prednet_S5_no_SSL.h5"
 }
+

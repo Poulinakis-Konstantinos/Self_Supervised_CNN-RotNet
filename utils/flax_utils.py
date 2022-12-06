@@ -50,3 +50,22 @@ class NumpyLoader(data.DataLoader):
 class FlattenAndCast(object):
     def __call__(self, pic):
         return np.array(pic.permute(1, 2, 0),dtype=jnp.float32)
+
+def rotate_image(images):
+    """
+        This function takes in a numpy array of shape (batch_size, img_l, img_w, num_channels)
+        and returns a numpy array of shape (4*batch_size, img_l, img_w, num_channels) with the
+        rotated copies of each image and rotation labels of length (4*batch_size).
+    """
+    batch_size, _, _, _ = images.shape
+    images_90  = jnp.rot90(images, 1, (-3,-2))
+    images_180 = jnp.rot90(images, 2, (-3,-2))
+    images_270 = jnp.rot90(images, 3, (-3,-2))
+
+    # ------------------------- Stack the rotated images ------------------------- #
+    rotated_image_set = jnp.vstack((images, images_90.copy(), images_180.copy(), images_270.copy()))
+
+    # ------------------------ Create the rotation labels ------------------------ #
+    rotation_labels = jnp.hstack( (jnp.zeros(batch_size), jnp.ones(batch_size), 2*jnp.ones(batch_size), 3*jnp.ones(batch_size)) )
+
+    return jnp.array(rotated_image_set), jnp.array(rotation_labels)

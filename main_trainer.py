@@ -18,7 +18,7 @@ from utils.dataloader import load_data
 from utils.flax_utils import rotate_image
 from tqdm import tqdm
 from flax.training import train_state, checkpoints
-
+import os
 
 def parse():
     parser = argparse.ArgumentParser()
@@ -144,11 +144,21 @@ def main():
     # NOTE: This dataloader requires pytorch to load the datset for convenience.
     train_loader, validation_loader, test_loader, rot_train_loader, rot_validation_loader, rot_test_loader = load_data(batch_size=args.batch_size, workers=4)
     print("Data Loaded!")
-    
+    import os
     # --- Create the Train State Abstraction (see documentation in link below) --- #
     # Step 6: https://flax.readthedocs.io/en/latest/getting_started.html#create-train-state
     state = create_train_state(rng, model, args.lr, args.momentum)
     print("Train State Created")
+    
+    # createing state directory
+    path = "./state_root"
+    isExist = os.path.exists(path)
+    if not isExist:
+        os.makedirs(path)
+        print("creating root directory for state")
+    else:
+        print("find existing root directory for state")
+    exit()
     
     print("Starting Training Loop!")
     for epoch in tqdm(range(args.epochs)):

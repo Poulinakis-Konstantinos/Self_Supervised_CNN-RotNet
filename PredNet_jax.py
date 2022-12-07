@@ -27,10 +27,15 @@ key = random.PRNGKey(1)
 class Head(nn.Module):
     dense_layers: List[int]
     num_classes: int
+    cnn_layers: List[int]
     batch_norm_cls: partial = partial(nn.BatchNorm, momentum=0.9)
     
     @nn.compact
     def __call__(self, inputs, train: bool):
+        for layers in self.cnn_layers:
+                x = nn.Conv(features=layers, kernel_size=(3, 3), dtype=self.dtype, kernel_init=self.kernel_init)
+                x = nn.relu(x)
+                x = self.batch_norm_cls(use_running_average=not train)(x)
         # if shape (32, 32, 3) : need flatten layer
         # if shape(1, 32, 32, 3): not need flatten ?
         x = inputs.reshape(inputs.shape[0], -1)
@@ -44,8 +49,8 @@ class Head(nn.Module):
 
 
 class TransferModel(nn.Module):
-    backbone: Seqential
-    head: Head
+    backbone: nn.Module
+    head: nn.Module
     cnn_layers: List[int]
     batch_norm_cls: partial = partial(nn.BatchNorm, momentum=0.9)
     

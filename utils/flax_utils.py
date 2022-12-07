@@ -68,4 +68,4 @@ def rotate_image(images):
     # ------------------------ Create the rotation labels ------------------------ #
     rotation_labels = jnp.hstack( (jnp.zeros(batch_size), jnp.ones(batch_size), 2*jnp.ones(batch_size), 3*jnp.ones(batch_size)) )
 
-    return jnp.array(rotated_image_set), jnp.array(rotation_labels)
+    return np.array(rotated_image_set), np.array(rotation_labels)

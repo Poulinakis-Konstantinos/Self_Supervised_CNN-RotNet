@@ -89,7 +89,7 @@ def load_data(batch_size=128, workers=4):
         rot_train_dataset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=workers,
+        num_workers=0,
         pin_memory=False,
     )
 
@@ -105,7 +105,7 @@ def load_data(batch_size=128, workers=4):
         rot_validation_dataset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=workers,
+        num_workers=0,
         pin_memory=False,
     )
 
@@ -121,7 +121,7 @@ def load_data(batch_size=128, workers=4):
         rot_test_dataset,
         batch_size=batch_size,
         shuffle=False,
-        num_workers=workers,
+        num_workers=0,
         pin_memory=False,
     )
 

@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers, activations, optimizers, Sequential, regularizers
-from loaders import  load_data
+# from loaders import  load_data
 from utils import plot_training_curves,plot_sample
 import numpy as np
 from os import path 

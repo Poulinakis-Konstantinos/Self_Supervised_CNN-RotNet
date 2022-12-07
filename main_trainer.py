@@ -6,7 +6,6 @@ from jax._src.dtypes import dtype
 import jax.numpy as jnp
 import jax
 import torchvision.transforms as transforms
-import PredNet
 import flax.linen as nn
 import optax
 from flax.training import train_state
@@ -19,9 +18,12 @@ from utils.flax_utils import rotate_image
 from tqdm import tqdm
 from flax.training import train_state, checkpoints
 import os
+from RotNet import RotNet3
 from PredNet_jax import Head, TransferModel, PredNet1
 from jax_resnet import slice_variables, Sequential
 
+# CONSTANTS
+CIFAR10_MOCK_INPUT_SHAPE = (1, 32, 32, 3)
 
 class TrainState(train_state.TrainState):
     batch_stats: Any
@@ -101,7 +103,7 @@ def create_train_state(rng, model, learning_rate, momentum):
     Step 6: https://flax.readthedocs.io/en/latest/getting_started.html#create-train-state
     """
     variables = model.init(
-        rng, jnp.ones((1, 32, 32, 3), dtype=model.dtype), train=False
+        rng, jnp.ones(CIFAR10_MOCK_INPUT_SHAPE, dtype=model.dtype), train=False
     )
     params, batch_stats = variables["params"], variables["batch_stats"]
     tx = optax.sgd(learning_rate, momentum)
@@ -200,7 +202,7 @@ def main():
     # ------------------------------ Define network ------------------------------ #
     # Step 2: https://flax.readthedocs.io/en/latest/getting_started.html#define-network
     # TODO: Fix This!
-    model = RotNet3()
+    RotNet_model = RotNet3()
 
     print("Network Defined")
 
@@ -219,7 +221,7 @@ def main():
     print("Data Loaded!")
     # --- Create the Train State Abstraction (see documentation in link below) --- #
     # Step 6: https://flax.readthedocs.io/en/latest/getting_started.html#create-train-state
-    state = create_train_state(rng, model, args.lr, args.momentum)
+    state = create_train_state(rng, RotNet_model, args.lr, args.momentum)
     print("Train State Created")
 
     # createing state directory
@@ -259,22 +261,40 @@ def main():
         # Print validation metrics every epoch
         print(f"validation loss: {validation_loss:.4f}")
 
+        # ---------------------------- Saving Checkpoints ---------------------------- #
+        # ---- https://flax.readthedocs.io/en/latest/guides/use_checkpointing.html --- #
+        checkpoints.save_checkpoint(
+            ckpt_dir=ckpt_path, target=state, step=epoch, overwrite=True, keep=10
+        )
+
         if epoch % 10 == 0:
             # Print test metrics every nth epoch
             _, test_accuracy = eval_model(state, rot_test_loader, num_classes=4)
             print(f"test_accuracy: {test_accuracy:.2f}")
 
-            # ---------------------------- Saving Checkpoints ---------------------------- #
-            # ---- https://flax.readthedocs.io/en/latest/guides/use_checkpointing.html --- #
-            checkpoints.save_checkpoint(
-                ckpt_dir=ckpt_path, target=state, step=epoch, overwrite=True, keep=10
-            )
-
-    # restore the checkpoint for rotnet and it will be used for prednet constructor
-    state = checkpoints.restore_checkpoint(
-        ckpt_path, target=state, step=args.start_epoch
+    # Restore the checkpoint for rotnet and it will be used for prednet constructor
+    # TODO: Make this robust
+    rotnet_state = checkpoints.restore_checkpoint(
+        ckpt_path, target=state, step=args.epochs
     )
-    start, end = 0, len(model.layers) - 2
+
+    print(RotNet_model().tabulate(rng, jnp.ones(CIFAR10_MOCK_INPUT_SHAPE)))
+
+    # ------------------------- Get Start and End Layer -------------------------- #
+    start, end = 0, len(RotNet_model.layers) - 2
+
+    # ----------------------------- Extract Backbone ----------------------------- #
+    backbone_model  = Sequential(RotNet_model.layers[start:end])
+    backbone_params = slice_variables(rotnet_state.params, start, end)
+
+    # ------------------------- Get Backbone Output Shape ------------------------ #
+    backbone_output = backbone_model.apply(
+        backbone_params,
+        jnp.ones(CIFAR10_MOCK_INPUT_SHAPE),
+        dtype=RotNet_model.dtype
+    )
+
+    # -------------------- Load Prednet Model with checkpoints ------------------- #
     prednet_model = PredNet1(
         base_model=Sequential(model.layers[start:end]),
         backbone_params=slice_variables(state.params, start, end),

@@ -7,10 +7,7 @@ from flax.core import freeze, unfreeze
 from flax import linen as nn
 import copy
 from functools import partial
-from utils_flax import compute_weight_decay
 import numpy as np
-
-from jax.nn import Seqential, relu, softmax
 from flax.training import train_state, checkpoints
 
 import optax
@@ -55,7 +52,6 @@ class Head(nn.Module):
 
 class TransferModel(nn.Module):
     backbone: nn.Module
-    backbone_params: nn.Params
     head: nn.Module
     cnn_layers: List[int]
     batch_norm_cls: partial = partial(nn.BatchNorm, momentum=0.9)
@@ -64,7 +60,7 @@ class TransferModel(nn.Module):
     def __call__(self, input, train: bool):
         x = input
         if self.backbone is not None:
-            x = self.backbone.apply(self.backbone_params, x)
+            x = self.backbone(x)
 
         else:
             for layers in self.cnn_layers:

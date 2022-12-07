@@ -15,12 +15,6 @@ import wandb
 import flax
 from utils.dataloader import load_data
 
-class TrainState(train_state.TrainState):
-    batch_stats: Any = None
-    weight_decay: Any = None
-    dynamic_scale: flax.optim.DynamicScale = None
-
-
 def parse():
     parser = argparse.ArgumentParser()
     parser.add_argument("-data", "--data", default="ML/", type=str, metavar="DIR", help="path to dataset")

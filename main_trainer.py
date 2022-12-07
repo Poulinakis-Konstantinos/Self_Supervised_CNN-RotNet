@@ -18,7 +18,7 @@ from utils.dataloader import load_data
 from utils.flax_utils import rotate_image
 from tqdm import tqdm
 from flax.training import train_state, checkpoints
-
+import os
 
 def parse():
     parser = argparse.ArgumentParser()
@@ -37,14 +37,15 @@ def parse():
     args = parser.parse_args()
     return args
 
-def cross_entropy_loss(*, logits, labels, num_classes):
+def cross_entropy_loss_(logits, labels, num_classes=10):
     """
         Step 3: https://flax.readthedocs.io/en/latest/getting_started.html#define-loss
     """
     labels_onehot = jax.nn.one_hot(labels, num_classes=num_classes)
     return optax.softmax_cross_entropy(logits=logits, labels=labels_onehot).mean()
+cross_entropy_loss = jax.jit(cross_entropy_loss_, static_argnums=2)
 
-def compute_metrics(logits, labels, num_classes):
+def compute_metrics_(logits, labels, num_classes):
     """
         Step 4: https://flax.readthedocs.io/en/latest/getting_started.html#metric-computation
     """
@@ -53,6 +54,7 @@ def compute_metrics(logits, labels, num_classes):
     accuracy = jnp.mean(jnp.argmax(logits, -1) == labels)
     metrics = {"loss": loss, "accuracy": accuracy}
     return metrics
+compute_metrics = jax.jit(compute_metrics_, static_argnums=2)
 
 def create_train_state(rng, model, learning_rate, momentum):
     """
@@ -64,7 +66,7 @@ def create_train_state(rng, model, learning_rate, momentum):
     # TODO: Check if this is correct for BatchNorm
     return train_state.TrainState.create(apply_fn=model.apply, params=params, tx=tx)
 
-def train_batch(state, images, labels, num_classes):
+def train_batch_(state, images, labels, num_classes=10):
     """
         Step 7: https://flax.readthedocs.io/en/latest/getting_started.html#training-step
     """
@@ -84,8 +86,9 @@ def train_batch(state, images, labels, num_classes):
     state = state.apply_gradients(grads=grads)
     metrics = compute_metrics(logits=logits, labels=labels, num_classes=num_classes)
     return state, metrics
+train_batch = jax.jit(train_batch_, static_argnums=3)
 
-def train_epoch(state, dataloader, rot_train=False, num_classes=10):
+def train_epoch(state, dataloader, num_classes=10):
     """
         Step 9: https://flax.readthedocs.io/en/latest/getting_started.html#train-function
     """
@@ -93,7 +96,6 @@ def train_epoch(state, dataloader, rot_train=False, num_classes=10):
     batch_metrics = []
     i = 0
     for images, labels in dataloader:
-        print(i, "/", len(dataloader))
         i += 1
         # --------- Change the labels and modify batch for backbone training --------- #
         state, metrics = train_batch(state, images, labels, num_classes=num_classes)
@@ -102,7 +104,7 @@ def train_epoch(state, dataloader, rot_train=False, num_classes=10):
     epoch_metrics_np = {k: np.mean([metrics[k] for metrics in batch_metrics_np]) for k in batch_metrics_np[0]}
     return state, epoch_metrics_np
 
-def eval_batch(state, images, labels, num_classes):
+def eval_batch_(state, images, labels, num_classes=10):
     """
         Step 8: https://flax.readthedocs.io/en/latest/getting_started.html#evaluation-step
     """
@@ -110,6 +112,7 @@ def eval_batch(state, images, labels, num_classes):
         {"params": state.params}, images, mutable=False, train=False
     )
     return compute_metrics(logits=logits, labels=labels, num_classes=num_classes)
+eval_batch = jax.jit(eval_batch_, static_argnums=3)
 
 def eval_model(state, dataloader, num_classes=10):
     """
@@ -144,18 +147,26 @@ def main():
     # NOTE: This dataloader requires pytorch to load the datset for convenience.
     train_loader, validation_loader, test_loader, rot_train_loader, rot_validation_loader, rot_test_loader = load_data(batch_size=args.batch_size, workers=4)
     print("Data Loaded!")
-    
     # --- Create the Train State Abstraction (see documentation in link below) --- #
     # Step 6: https://flax.readthedocs.io/en/latest/getting_started.html#create-train-state
     state = create_train_state(rng, model, args.lr, args.momentum)
     print("Train State Created")
+    
+    # createing state directory
+    path = "./state_root"
+    isExist = os.path.exists(path)
+    if not isExist:
+        os.makedirs(path)
+        print("creating root directory for state")
+    else:
+        print("find existing root directory for state")
     
     print("Starting Training Loop!")
     for epoch in tqdm(range(args.epochs)):
 
         # ------------------------------- Training Step ------------------------------ #
         # Step 7: https://flax.readthedocs.io/en/latest/getting_started.html#training-step
-        state, train_epoch_metrics_np = train_epoch(state, rot_train_loader, rot_train=True, num_classes=4)
+        state, train_epoch_metrics_np = train_epoch(state, rot_train_loader, num_classes=4)
         checkpoints.save_checkpoint(ckpt_dir="./state_root", target=state, step=epoch)
 
         # Print train metrics every epoch

@@ -149,15 +149,14 @@ def main():
     # Step 6: https://flax.readthedocs.io/en/latest/getting_started.html#create-train-state
     state = create_train_state(rng, model, args.lr, args.momentum)
     print("Train State Created")
-
+    
     print("Starting Training Loop!")
     for epoch in tqdm(range(args.epochs)):
 
         # ------------------------------- Training Step ------------------------------ #
         # Step 7: https://flax.readthedocs.io/en/latest/getting_started.html#training-step
         state, train_epoch_metrics_np = train_epoch(state, rot_train_loader, rot_train=True, num_classes=4)
-        checkpoints.save_checkpoint(ckpt_dir="./state_root", target=state, step=0)
-        
+        checkpoints.save_checkpoint(ckpt_dir="./state_root", target=state, step=epoch)
 
         # Print train metrics every epoch
         print(

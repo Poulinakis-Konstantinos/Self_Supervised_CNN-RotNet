@@ -26,8 +26,8 @@ key = random.PRNGKey(1)
 
 class Head(nn.Module):
     dense_layers: List[int]
-    batch_norm_cls: partial = partial(nn.BatchNorm, momentum=0.9)
     num_classes: int
+    batch_norm_cls: partial = partial(nn.BatchNorm, momentum=0.9)
     
     @nn.compact
     def __call__(self, inputs, train: bool):
@@ -62,27 +62,9 @@ class TransferModel(nn.Module):
         x = self.head(x)
         return x
 
-
-
-
-
-
-
-
-def PredNet(cnn_layers, dense_layers, in_shape=(1,32,32,3), classes=10, transfer=True, base_model_name='rotnet_v1', lr = 0.1, momentum = 0.01):
+def PredNet(cnn_layers, dense_layers, in_shape=(32,32,3), classes=10, transfer=True, base_model=None, lr = 0.1, momentum = 0.01):
     
-    model = TransferModel()
+    new_head = Head(dense_layers = dense_layers, num_classes = classes)
     
-    
-    
-
-    return model
-
-
-def PredNet_constructor(build_instructions: dict):
-    
-    model = None
-    
-    return model
-    
+    return TransferModel(backbone = base_model, head = new_head, cnn_layers = cnn_layers)
     

@@ -20,7 +20,10 @@ from flax.training import train_state, checkpoints
 import os
 from RotNet import RotNet3
 from PredNet_jax import Head, TransferModel, PredNet1
+from PredNet_final import PredNet3
 from jax_resnet import slice_variables, Sequential
+from flax.core.frozen_dict import freeze
+from flax import traverse_util
 
 # CONSTANTS
 CIFAR10_MOCK_INPUT_SHAPE = (1, 32, 32, 3)
@@ -31,36 +34,11 @@ class TrainState(train_state.TrainState):
 
 def parse():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-j",
-        "--workers",
-        default=4,
-        type=int,
-        metavar="N",
-        help="number of data loading workers (default: 4)",
-    )
-    parser.add_argument(
-        "--epochs",
-        default=100,
-        type=int,
-        metavar="N",
-        help="number of total epochs to run",
-    )
-    parser.add_argument(
-        "--start_epoch",
-        default=0,
-        type=int,
-        metavar="N",
-        help="manual epoch number (useful on restarts)",
-    )
-    parser.add_argument(
-        "-b",
-        "--batch_size",
-        default=128,
-        type=int,
-        metavar="N",
-        help="mini-batch size per process (default: 128)",
-    )
+    parser.add_argument("-j", "--workers", default=4, type=int, metavar="N", help="number of data loading workers (default: 4)")
+    parser.add_argument("--epochs", default=100, type=int, metavar="N", help="number of total epochs to run")
+    parser.add_argument("--tune_epochs", default=100, type=int, metavar="N", help="number of total prednet epochs to run")
+    parser.add_argument("--start_epoch", default=0, type=int, metavar="N", help="manual epoch number (useful on restarts)")
+    parser.add_argument("-b", "--batch_size", default=128, type=int, metavar="N", help="mini-batch size per process (default: 128)")
     parser.add_argument("--model_rotnet", type=str, default="RotNet3")
     parser.add_argument("--model_prednet", type=str, default="PredNet3")
     parser.add_argument("--CIFAR10", type=bool, default=True)
@@ -110,7 +88,7 @@ def create_train_state(rng, model, learning_rate, momentum):
     # TODO: Check if this is correct for BatchNorm
     return TrainState.create(
         apply_fn=model.apply, params=params, tx=tx, batch_stats=batch_stats
-    )
+    ), variables
 
 
 def train_batch_(state, images, labels, num_classes=10):
@@ -190,6 +168,11 @@ def eval_model(state, dataloader, num_classes=10):
     }
     return validation_metrics_np["loss"], validation_metrics_np["accuracy"]
 
+def extract_submodule(model):
+    feature_extractor = model.features.clone()
+    variables = model.features.variables
+    return feature_extractor, variables
+
 
 def main():
     args = parse()
@@ -221,7 +204,7 @@ def main():
     print("Data Loaded!")
     # --- Create the Train State Abstraction (see documentation in link below) --- #
     # Step 6: https://flax.readthedocs.io/en/latest/getting_started.html#create-train-state
-    state = create_train_state(rng, RotNet_model, args.lr, args.momentum)
+    state, RotNet_variables = create_train_state(rng, RotNet_model, args.lr, args.momentum)
     print("Train State Created")
 
     # createing state directory
@@ -278,31 +261,98 @@ def main():
         ckpt_path, target=state, step=args.epochs
     )
 
-    print(RotNet_model().tabulate(rng, jnp.ones(CIFAR10_MOCK_INPUT_SHAPE)))
+    print(nn.tabulate(RotNet_model, rng)(jnp.ones(CIFAR10_MOCK_INPUT_SHAPE), False))
+    
 
     # ------------------------- Get Start and End Layer -------------------------- #
-    start, end = 0, len(RotNet_model.layers) - 2
+    # start, end = 0, len(RotNet_model.layers) - 2
 
+    # ---- https://flax.readthedocs.io/en/latest/guides/transfer_learning.html --- #
     # ----------------------------- Extract Backbone ----------------------------- #
-    backbone_model  = Sequential(RotNet_model.layers[start:end])
-    backbone_params = slice_variables(rotnet_state.params, start, end)
-
-    # ------------------------- Get Backbone Output Shape ------------------------ #
-    backbone_output = backbone_model.apply(
-        backbone_params,
-        jnp.ones(CIFAR10_MOCK_INPUT_SHAPE),
-        dtype=RotNet_model.dtype
+    backbone_model, backbone_model_variables = nn.apply(extract_submodule, RotNet_model)(RotNet_variables)
+    
+    # ----------------------- Create the new Prednet Model ----------------------- #
+    PredNet_model = PredNet3(backbone_model)
+    
+    # ----------------------- Extract Variables and Params ----------------------- #
+    sample_input        = jnp.empty(CIFAR10_MOCK_INPUT_SHAPE)
+    PredNet_variables   = PredNet_model.init(rng, sample_input, False)
+    PredNet_params      = PredNet_variables['params']
+    PredNet_batch       = PredNet_variables['batch_stats']
+ 
+    # --------------------- Transfer the Backbone Parameters --------------------- #
+    PredNet_params              = PredNet_params.unfreeze()
+    PredNet_params['backbone']  = backbone_model_variables['params']
+    PredNet_params              = freeze(PredNet_params)
+    
+    PredNet_batch              = PredNet_batch.unfreeze()
+    PredNet_batch['backbone']  = backbone_model_variables['batch_stats']
+    PredNet_batch              = freeze(PredNet_batch)
+    
+    # -------------------------- Define how to Backprop -------------------------- #
+    partition_optimizers = {'trainable': optax.sgd(args.lr, args.momentum), 'frozen': optax.set_to_zero()}
+    PredNet_param_partitions = freeze(traverse_util.path_aware_map(
+        lambda path, v: 'frozen' if 'backbone' in path else 'trainable', PredNet_params))
+    
+    tx = optax.multi_transform(partition_optimizers, PredNet_param_partitions)
+    
+    # ---------------- Visualize param_partitions to double check ---------------- #
+    flat = list(traverse_util.flatten_dict(PredNet_param_partitions).items())
+    freeze(traverse_util.unflatten_dict(dict(flat[:2] + flat[-2:])))
+    
+    # ---------------------- Create Train State for PredNet ---------------------- #
+    PredNet_state = TrainState.create(
+        apply_fn=PredNet_model.apply,
+        params=PredNet_params,
+        tx=tx,
+        batch_stats=PredNet_batch
     )
+    
+    # createing state directory
+    prednet_ckpt_path = "./prednet_ckpts"
+    if not os.path.exists(prednet_ckpt_path):
+        os.makedirs(prednet_ckpt_path)
+        print("creating root directory for state")
+    else:
+        print("find existing root directory for state")
+    
+    
+    # -------------------------------- Lets Train -------------------------------- #
+    for epoch in tqdm(range(1, args.tune_epochs + 1)):
 
-    # -------------------- Load Prednet Model with checkpoints ------------------- #
-    prednet_model = PredNet1(
-        base_model=Sequential(model.layers[start:end]),
-        backbone_params=slice_variables(state.params, start, end),
-    )
-    train_loader, validation_loader, test_loader
+        # ------------------------------- Training Step ------------------------------ #
+        # Step 7: https://flax.readthedocs.io/en/latest/getting_started.html#training-step
+        PredNet_state, train_epoch_metrics_np = train_epoch(
+            PredNet_state, train_loader, num_classes=10
+        )
 
-    state = create_train_state(rng, model, args.lr, args.momentum)
-    print("Train State Created")
+        # Print train metrics every epoch
+        print(
+            f"train epoch: {epoch}, \
+            loss: {train_epoch_metrics_np['loss']:.4f}, \
+            accuracy:{train_epoch_metrics_np['accuracy']*100:.2f}%"
+        )
+
+        # ------------------------------ Evaluation Step ----------------------------- #
+        #  Step 8: https://flax.readthedocs.io/en/latest/getting_started.html#evaluation-step
+        validation_loss, _ = eval_model(PredNet_state, validation_loader, num_classes=10)
+
+        # Print validation metrics every epoch
+        print(f"validation loss: {validation_loss:.4f}")
+
+        # ---------------------------- Saving Checkpoints ---------------------------- #
+        # ---- https://flax.readthedocs.io/en/latest/guides/use_checkpointing.html --- #
+        checkpoints.save_checkpoint(
+            ckpt_dir=prednet_ckpt_path, target=PredNet_state, step=epoch, overwrite=True, keep=10
+        )
+
+        if epoch % 10 == 0:
+            # Print test metrics every nth epoch
+            _, test_accuracy = eval_model(PredNet_state, test_loader, num_classes=10)
+            print(f"test_accuracy: {test_accuracy:.2f}")
+    
+    
+
 
 
 if __name__ == "__main__":

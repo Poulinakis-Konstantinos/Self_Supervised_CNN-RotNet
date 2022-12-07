@@ -12,6 +12,20 @@ import numpy as np
 ModuleDef = Any
 dtypedef = Any
 
+# class Sequential(nn.Module):
+#   layers: Sequence[nn.Module]
+
+#   def __call__(self, x, train):
+#     for layer in self.layers:
+#       x = layer(x, train)
+#     return x
+
+#   def append(self, layer):
+#     self.list_layers = list(self.layers)
+#     self.list_layers.append(layer)
+#     self.layers = Sequence(self.list_layers)
+      
+
 class RotNetBlock(nn.Module):
     cnn_channels: int
     norm: ModuleDef
@@ -24,6 +38,28 @@ class RotNetBlock(nn.Module):
         x = self.norm()(x)
         x = nn.relu(x)
         return x
+    
+class Features(nn.Module):
+    cnn_channels: int
+    num_blocks: int
+    dtype: dtypedef = jnp.float32
+    
+    @nn.compact
+    def __call__(self, x, train):
+        norm = partial(nn.BatchNorm, use_running_average=not train, dtype=self.dtype)
+        for _ in range(self.num_blocks):
+            x = RotNetBlock(cnn_channels=self.cnn_channels, norm=norm)(x)
+        return x
+
+class Classifier(nn.Module):
+    num_classes: int
+    dtype: dtypedef = jnp.float32
+    kernel_init: Callable = nn.initializers.glorot_uniform()
+    
+    @nn.compact
+    def __call__(self, x):
+        x = nn.Dense(features=self.num_classes, dtype=self.dtype, kernel_init=self.kernel_init)(x)
+        return x
 
 class RotNet(nn.Module):
     cnn_channels: int
@@ -32,13 +68,14 @@ class RotNet(nn.Module):
     dtype: dtypedef = jnp.float32
     kernel_init: Callable = nn.initializers.glorot_uniform()
 
-    @nn.compact
+    def setup(self):
+        self.features = Features(cnn_channels=self.cnn_channels, num_blocks=self.num_blocks, dtype=self.dtype)
+        self.classifier = Classifier(num_classes=self.num_classes, dtype=self.dtype, kernel_init=self.kernel_init)
+
     def __call__(self, x, train):
-        norm = partial(nn.BatchNorm, use_running_average=not train, dtype=self.dtype)
-        for _ in range(self.num_blocks):
-            x = RotNetBlock(cnn_channels=self.cnn_channels, norm=norm)(x)
+        x = self.features(x, train)
         x = x.reshape(x.shape[0], -1)
-        x = nn.Dense(features=self.num_classes, dtype=self.dtype, kernel_init=self.kernel_init)(x)
+        x = self.classifier(x)
         return x
 
 def _rotnet(cnn_channels, num_blocks, num_classes):

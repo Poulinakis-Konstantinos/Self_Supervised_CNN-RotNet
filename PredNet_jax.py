@@ -112,3 +112,19 @@ def PredNet1(
         head=new_head,
         cnn_layers=cnn_layers,
     )
+
+# def _rotnet(cnn_channels, num_blocks, num_classes):
+#     model = RotNet(cnn_channels=cnn_channels, num_blocks=num_blocks, num_classes=num_classes)
+#     return model
+
+# def PredNet3():
+#     return _rotnet(cnn_channels=64, num_blocks=3, num_classes=4)
+
+
+# def PredNet4():
+#     return _rotnet(cnn_channels=64, num_blocks=4, num_classes=4)
+
+
+# def PredNet5():
+#     return _rotnet(cnn_channels=64, num_blocks=5, num_classes=4)
+

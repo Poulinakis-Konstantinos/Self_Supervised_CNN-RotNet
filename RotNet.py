@@ -6,7 +6,7 @@ from flax.core import freeze, unfreeze
 from flax import linen as nn
 import copy
 from functools import partial
-from utils_flax import compute_weight_decay
+# from utils_flax import compute_weight_decay
 import numpy as np
 
 ModuleDef = Any

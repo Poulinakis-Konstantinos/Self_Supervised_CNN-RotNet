@@ -17,6 +17,8 @@ import flax
 from utils.dataloader import load_data
 from utils.flax_utils import rotate_image
 from tqdm import tqdm
+from flax.training import train_state, checkpoints
+
 
 def parse():
     parser = argparse.ArgumentParser()
@@ -154,6 +156,8 @@ def main():
         # ------------------------------- Training Step ------------------------------ #
         # Step 7: https://flax.readthedocs.io/en/latest/getting_started.html#training-step
         state, train_epoch_metrics_np = train_epoch(state, rot_train_loader, rot_train=True, num_classes=4)
+        checkpoints.save_checkpoint(ckpt_dir="./state_root", target=state, step=0)
+        
 
         # Print train metrics every epoch
         print(

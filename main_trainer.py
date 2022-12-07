@@ -152,22 +152,23 @@ def main():
     print("Train State Created")
     
     # createing state directory
-    path = "./state_root"
-    if not os.path.exists(path):
-        os.makedirs(path)
+    ckpt_path = "./ckpts"
+    if not os.path.exists(ckpt_path):
+        os.makedirs(ckpt_path)
         print("creating root directory for state")
     else:
         print("find existing root directory for state")
     
+    # restore ckpt if specified
+    if args.start_epoch > 0:
+        state = checkpoints.restore_checkpoint(ckpt_path, target=state, step=args.start_epoch)
+    
     print("Starting Training Loop!")
-    for epoch in tqdm(range(args.epochs)):
+    for epoch in tqdm(range(args.start_epoch + 1, args.epochs + 1)):
 
         # ------------------------------- Training Step ------------------------------ #
         # Step 7: https://flax.readthedocs.io/en/latest/getting_started.html#training-step
         state, train_epoch_metrics_np = train_epoch(state, rot_train_loader, num_classes=4)
-        # ---------------------------- Saving Checkpoints ---------------------------- #
-        # ---- https://flax.readthedocs.io/en/latest/guides/use_checkpointing.html --- #
-        checkpoints.save_checkpoint(ckpt_dir="./ckpts", target=state, step=epoch)
 
         # Print train metrics every epoch
         print(
@@ -187,7 +188,10 @@ def main():
             # Print test metrics every nth epoch
             _, test_accuracy = eval_model(state, rot_test_loader, num_classes=4)
             print(f"test_accuracy: {test_accuracy:.2f}")
-
+            
+            # ---------------------------- Saving Checkpoints ---------------------------- #
+            # ---- https://flax.readthedocs.io/en/latest/guides/use_checkpointing.html --- #
+            checkpoints.save_checkpoint(ckpt_dir=ckpt_path, target=state, step=epoch, overwrite=True, keep=10)
 
 if __name__ == '__main__':
     main()

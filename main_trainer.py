@@ -1,3 +1,4 @@
+# TODO: Clean this up!
 import argparse
 import functools
 from typing import Any
@@ -32,25 +33,37 @@ def parse():
     args = parser.parse_args()
     return args
 
+@jax.jit
+def cross_entropy_loss(*, logits, labels):
+    """
+        Step 3: https://flax.readthedocs.io/en/latest/getting_started.html#define-loss
+    """
+    labels_onehot = jax.nn.one_hot(labels, num_classes=10)
+    return optax.softmax_cross_entropy(logits=logits, labels=labels_onehot).mean()
+
+def compute_metrics(*, logits, labels):
+    """
+        Step 4: https://flax.readthedocs.io/en/latest/getting_started.html#metric-computation
+    """
+    loss = cross_entropy_loss(logits=logits, labels=labels)
+    accuracy = jnp.mean(jnp.argmax(logits, -1) == labels)
+    metrics = {"loss": loss, "accuracy": accuracy}
+    return metrics
+
 def create_train_state(rng, model, learning_rate, momentum):
+    """
+        Step 6: https://flax.readthedocs.io/en/latest/getting_started.html#create-train-state
+    """
     variables = model.init(rng, jnp.ones((1, 32, 32, 3), dtype=model.dtype), train=True)
     params, batch_stats = variables['params'], variables['batch_stats']
     tx = optax.sgd(learning_rate, momentum)
     return train_state.TrainState.create(apply_fn=model.apply, params=params, tx=tx, batch_stats=batch_stats)
 
 @jax.jit
-def cross_entropy_loss(*, logits, labels):
-    labels_onehot = jax.nn.one_hot(labels, num_classes=10)
-    return optax.softmax_cross_entropy(logits=logits, labels=labels_onehot).mean()
-
-def compute_metrics(*, logits, labels):
-    loss = cross_entropy_loss(logits=logits, labels=labels)
-    accuracy = jnp.mean(jnp.argmax(logits, -1) == labels)
-    metrics = {"loss": loss, "accuracy": accuracy}
-    return metrics
-
-@jax.jit
 def train_batch(state, images, labels):
+    """
+        Step 7: https://flax.readthedocs.io/en/latest/getting_started.html#training-step
+    """
     def loss_fn(params):
         logits, new_state = state.apply_fn(
             {"params": params, "batch_stats": state.batch_stats}, images, mutable=["batch_stats"], train=True
@@ -66,6 +79,10 @@ def train_batch(state, images, labels):
     return state, metrics
 
 def train_epoch(state, dataloader):
+    """
+        Step 9: https://flax.readthedocs.io/en/latest/getting_started.html#train-function
+    """
+    # TODO: Shuffle Please!!
     batch_metrics = []
     for images, labels in dataloader:
         state, metrics = train_batch(state, images, labels)
@@ -76,12 +93,18 @@ def train_epoch(state, dataloader):
 
 @jax.jit
 def eval_batch(state, images, labels):
+    """
+        Step 8: https://flax.readthedocs.io/en/latest/getting_started.html#evaluation-step
+    """
     logits = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats}, images, mutable=False, train=False
     )
     return compute_metrics(logits=logits, labels=labels)
 
 def eval_model(state, dataloader):
+    """
+        Step 10: https://flax.readthedocs.io/en/latest/getting_started.html#eval-function
+    """
     batch_metrics = []
     for images, labels in dataloader:
         metrics = eval_batch(state, images, labels)
@@ -92,22 +115,47 @@ def eval_model(state, dataloader):
 
 def main():
     args = parse()
+
+    # ---------------------- Generate JAX Random Number Key ---------------------- #
     rng = jax.random.PRNGKey(0)
     rng, _ = jax.random.split(rng)
 
+    # ------------------------------ Define network ------------------------------ #
+    # Step 2: https://flax.readthedocs.io/en/latest/getting_started.html#define-network
+    # TODO: Fix This!
     model = RotNet3()
+
+    # ------------------------- Load the CIFAR10 dataset ------------------------- #
+    # Step 5: https://flax.readthedocs.io/en/latest/getting_started.html#loading-data
+    # NOTE: Choose batch_size and workers based on system specs
+    # NOTE: This dataloader requires pytorch to load the datset for convenience.
+    train_loader, validation_loader, test_loader = load_data(batch_size=128, workers=4)
+    
+    # --- Create the Train State Abstraction (see documentation in link below) --- #
+    # Step 6: https://flax.readthedocs.io/en/latest/getting_started.html#create-train-state
     state = create_train_state(rng, model, args.lr, args.momentum)
-    train_loader, validation_loader, test_loader = load_data()
 
     for epoch in range(args.epochs):
+
+        # ------------------------------- Training Step ------------------------------ #
+        # Step 7: https://flax.readthedocs.io/en/latest/getting_started.html#training-step
         state, train_epoch_metrics_np = train_epoch(state, train_loader)
+
+        # Print train metrics every epoch
         print(
             f"train epoch: {epoch}, \
             loss: {train_epoch_metrics_np['loss']:.4f}, \
             accuracy:{train_epoch_metrics_np['accuracy']*100:.2f}%"
         )
+
+        # ------------------------------ Evaluation Step ----------------------------- #
+        #  Step 8: https://flax.readthedocs.io/en/latest/getting_started.html#evaluation-step
         validation_loss, _ = eval_model(state, validation_loader)
+
+        # Print validation metrics every epoch
         print(f"validation loss: {validation_loss:.4f}")
+        
         if epoch % 10 == 0:
+            # Print test metrics every nth epoch
             _, test_accuracy = eval_model(state, test_loader)
             print(f"test_accuracy: {test_accuracy:.2f}")

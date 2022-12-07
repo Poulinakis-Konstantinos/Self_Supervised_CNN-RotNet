@@ -6,7 +6,7 @@ from jax._src.dtypes import dtype
 import jax.numpy as jnp
 import jax
 import torchvision.transforms as transforms
-from RotNet import RotNet3, RotNet4, RotNet5
+import PredNet
 import flax.linen as nn
 import optax
 from flax.training import train_state
@@ -36,6 +36,7 @@ def parse():
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--dtype", type=str, default="fp32")
+    parser.add_argument("--transfer", action='store_true', default=False)
     args = parser.parse_args()
     return args
 

@@ -2,22 +2,19 @@
 This file is almost entirely based on the example here: 
 https://jax.readthedocs.io/en/latest/notebooks/Neural_Network_and_Data_Loading.html
 
-Last Accessed: 5th December 2022
 """
 import numpy as np
-from torch.utils import data
 import jax.numpy as jnp
-import jax
-import flax
+from torch.utils import data
 
 def numpy_collate(batch):
-  if isinstance(batch[0], np.ndarray):
-    return np.stack(batch)
-  elif isinstance(batch[0], (tuple,list)):
-    transposed = zip(*batch)
-    return [numpy_collate(samples) for samples in transposed]
-  else:
-    return np.array(batch)
+    if isinstance(batch[0], np.ndarray):
+        return np.stack(batch)
+    elif isinstance(batch[0], (tuple,list)):
+        transposed = zip(*batch)
+        return [numpy_collate(samples) for samples in transposed]
+    else:
+        return np.array(batch)
 
 class NumpyLoader(data.DataLoader):
     def __init__(
@@ -66,6 +63,7 @@ def rotate_image(images):
     rotated_image_set = jnp.vstack((images, images_90.copy(), images_180.copy(), images_270.copy()))
 
     # ------------------------ Create the rotation labels ------------------------ #
-    rotation_labels = jnp.hstack( (jnp.zeros(batch_size), jnp.ones(batch_size), 2*jnp.ones(batch_size), 3*jnp.ones(batch_size)) )
+    rotation_labels = jnp.hstack((jnp.zeros(batch_size), jnp.ones(batch_size), 2*jnp.ones(batch_size), 3*jnp.ones(batch_size)))
 
     return np.array(rotated_image_set), np.array(rotation_labels)
+  

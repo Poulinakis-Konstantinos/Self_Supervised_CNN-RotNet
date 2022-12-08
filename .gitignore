@@ -1,5 +1,5 @@
 Net_weights/*
-__pycache__/*
+**/__pycache__/*
 .vscode/*
 saved_model/*
 .idea/*

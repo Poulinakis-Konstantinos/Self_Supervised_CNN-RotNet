@@ -1,124 +1,69 @@
-import matplotlib.pyplot as plt
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers, regularizers
-import json
-from os import path
+"""
+This file is almost entirely based on the example here: 
+https://jax.readthedocs.io/en/latest/notebooks/Neural_Network_and_Data_Loading.html
 
-def plot_sample(X, rows, cols, tensor=False):
-    ''' Function for plotting images.'''
+"""
+import numpy as np
+import jax.numpy as jnp
+from torch.utils import data
 
-    nb_rows = rows
-    nb_cols = cols
-    fig, axs = plt.subplots(nb_rows, nb_cols, figsize=(8, 8))
-    k=0
-    # if input is tensor convert to np.array before plotting
-    if tensor: X = X.numpy()
-    for i in range(0, nb_rows):
-        for j in range(0, nb_cols):
-            axs[i, j].xaxis.set_ticklabels([])
-            axs[i, j].yaxis.set_ticklabels([])
-            axs[i, j].imshow(X[k])
-            plt.tight_layout()
-            k += 1
-    plt.show()
+def numpy_collate(batch):
+    if isinstance(batch[0], np.ndarray):
+        return np.stack(batch)
+    elif isinstance(batch[0], (tuple,list)):
+        transposed = zip(*batch)
+        return [numpy_collate(samples) for samples in transposed]
+    else:
+        return np.array(batch)
 
+class NumpyLoader(data.DataLoader):
+    def __init__(
+        self,
+        dataset,
+        batch_size=1,
+        shuffle=False,
+        sampler=None,
+        batch_sampler=None,
+        num_workers=4,
+        pin_memory=False,
+        drop_last=False,
+        timeout=0,
+        worker_init_fn=None,
+    ):
+        super(self.__class__, self).__init__(
+            dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            sampler=sampler,
+            batch_sampler=batch_sampler,
+            num_workers=num_workers,
+            collate_fn=numpy_collate,
+            pin_memory=pin_memory,
+            drop_last=drop_last,
+            timeout=timeout,
+            worker_init_fn=worker_init_fn,
+        )
 
-def plot_training_curves(history, save_path):
-    '''Plot training learning curves for both train and validation.'''
-    #Defining the metrics we will plot.
-    train_acc = history[1][0]
-    val_acc = history[1][1]
-    train_loss = history[0][0]
-    val_loss = history[0][1]
+class FlattenAndCast(object):
+    def __call__(self, pic):
+        return np.array(pic.permute(1, 2, 0),dtype=jnp.float32)
 
-    #Range for the X axis.
-    epochs = range(len(train_loss))
+def rotate_image(images):
+    """
+        This function takes in a numpy array of shape (batch_size, img_l, img_w, num_channels)
+        and returns a numpy array of shape (4*batch_size, img_l, img_w, num_channels) with the
+        rotated copies of each image and rotation labels of length (4*batch_size).
+    """
+    batch_size, _, _, _ = images.shape
+    images_90  = jnp.rot90(images, 1, (-3,-2))
+    images_180 = jnp.rot90(images, 2, (-3,-2))
+    images_270 = jnp.rot90(images, 3, (-3,-2))
 
-    #Plotting Loss figures.
-    fig = plt.figure(figsize=(12,10)) #figure size h,w in inches
-    plt.rcParams.update({'font.size': 22}) #configuring font size.
-    plt.plot(epochs,train_loss,c="red",label="Training Loss") #plotting
-    plt.plot(epochs,val_loss,c="blue",label="Validation Loss")
-    plt.xlabel("Epochs") #title for x axis
-    plt.ylabel("Loss")   #title for y axis
-    plt.legend(fontsize=11)
+    # ------------------------- Stack the rotated images ------------------------- #
+    rotated_image_set = jnp.vstack((images, images_90.copy(), images_180.copy(), images_270.copy()))
 
-    #Plotting Accuracy figures.
-    fig = plt.figure(figsize=(12,10)) #figure size h,w in inches
-    plt.plot(epochs,train_acc,c="red",label="Training Acc") #plotting
-    plt.plot(epochs,val_acc,c="blue",label="Validation Acc")
-    plt.xlabel("Epochs")   #title for x axis
-    plt.ylabel("Accuracy") #title for y axis
-    plt.legend(fontsize=11)
+    # ------------------------ Create the rotation labels ------------------------ #
+    rotation_labels = jnp.hstack((jnp.zeros(batch_size), jnp.ones(batch_size), 2*jnp.ones(batch_size), 3*jnp.ones(batch_size)))
 
-    plt.savefig(path.join(save_path, 'training_curve.png'))
-
-
-class job_receiver:
-    '''
-    Basic job receiver class. Receives a json file and
-    produces the relevant dictionary...
-    '''
-
-    def __init__(self, path: str):
-        self.path = path
-
-    def __call__(self):
-        with open(self.path, 'r') as file:
-            job = json.load(file)
-        return job
-
-if __name__ == '__main__':
-
-    #run this script to understand the implemented functionality...
-
-    ###########################################################################################
-    ###########################################################################################
-    ###########################################################################################
-
-    #rotnet example...
-
-    #path for rotnet construction and training...
-    rotnet_path = './rotnet_config_example.json'
-
-    #rotnet job (dictionary form)
-    rotnet_job = job_receiver(rotnet_path)()
-
-    #here the rotnet model is constructed. see the json file in the rotnet_path to understand...
-    RotNet = RotNet_constructor(rotnet_job['build_instructions'])
-
-    print(RotNet.summary())
-
-    '''
-    Here we imagine training to happen...
-    Options from rotnet_job['training']
-    '''
-
-    #save model...
-    tf.keras.models.save_model(RotNet, rotnet_job['save_path'])
-
-    ###########################################################################################
-    ###########################################################################################
-    ###########################################################################################
-
-    #prednet example...
-
-    #path for prednet construction and training...
-    prednet_path = './prednet_config_example.json'
-
-    #rotnet job (dictionary form)
-    prednet_job = job_receiver(prednet_path)()
-
-    #here the rotnet model is constructed. see the json file in the rotnet_path to understand...
-    PredNet = PredNet_constructor(prednet_job['build_instructions'])
-
-    print(PredNet.summary())
-
-    '''
-    Here we imagine training to happen...
-    Options from prednet_job['training']
-    '''
-
-    #save model...
-    PredNet.save_weights(prednet_job['save_path'])
+    return np.array(rotated_image_set), np.array(rotation_labels)
+  

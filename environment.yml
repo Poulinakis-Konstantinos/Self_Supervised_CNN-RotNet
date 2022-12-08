@@ -1,0 +1,7 @@
+name: RotNet_jax
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+prefix: /home/roar/anaconda3/envs/RotNet_jax
